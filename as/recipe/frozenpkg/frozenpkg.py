@@ -67,9 +67,10 @@ class FrozenRPM:
     def _log(self, msg):
         logging.getLogger(self.name).info(msg)
 
-    def createTar(self, root_dir, buildroot, tarfile):
-        # 1. copy the python bins
 
+    def copyNeededFiles(self, root_dir, buildroot):
+
+        # copy the python bins
         bins_sdir   = self.buildout['buildout']['bin-directory']
         bins_ddir   = os.path.normpath(buildroot + "/bin")
 
@@ -80,13 +81,13 @@ class FrozenRPM:
             self._log('Copying python binary: %s' % pybin)
             shutil.copy(pybin, bins_ddir)
 
-        # 2. copy the libs
+        # copy the libs
         lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
         lib_ddir = os.path.normpath(buildroot + "/lib")
 
         shutil.copytree(lib_sdir, lib_ddir)
 
-        # 3. copy the eggs
+        # copy the eggs
         python_libdir = glob.glob(buildroot + "/lib/python*")[0]
 
         eggs_sdir = self.buildout['buildout']['eggs-directory']
@@ -107,13 +108,23 @@ class FrozenRPM:
 
                     shutil.copytree(egg_src, egg_dest)
 
-        #  create source tar
+
+
+    def createTar(self, root_dir, buildroot, tarfile):
+        """
+        Create a tar file with all the needed files
+        """
+        self.copyNeededFiles(root_dir, buildroot)
+
+        # create source tar
         self._log('Creating tar file %s' % (tarfile))
         os.system('cd "%(root_dir)s"; tar cfz "%(tarfile)s" *' % vars())
 
 
-
     def createRpm(self):
+        """
+        Create a RPM
+        """
 
         top_rpmbuild_dir  = os.path.abspath(tempfile.mkdtemp(suffix= '', prefix = 'rpmbuild-'))
 
@@ -192,6 +203,7 @@ class FrozenRPM:
             print stdout
             return []
 
+
         # now try to find the RPMs we have built
         result_rpms = []
         for arch_dir in os.listdir(top_rpmbuild_dir + "/RPMS"):
@@ -200,12 +212,13 @@ class FrozenRPM:
                 for rpm_file in os.listdir(full_arch_dir):
                     if fnmatch.fnmatch(rpm_file, "*.rpm"):
                         full_rpm_file = os.path.abspath(full_arch_dir + "/" + rpm_file)
-                        full_local_rpm_file = os.path.abspath(self.buildout['buildout']['directory'] + "/" + os.path.basename(full_rpm_file))
 
-                        shutil.copyfile(full_rpm_file, full_local_rpm_file)
+                        shutil.copy(full_rpm_file, self.buildout['buildout']['directory'])
 
-                        self._log('Built %s' % (full_local_rpm_file))
-                        result_rpms = result_rpms + [full_local_rpm_file]
+                        self._log('Built %s' % (rpm_file))
+                        result_rpms = result_rpms + [rpm_file]
+
+        shutil.rmtree(top_rpmbuild_dir)
 
         return result_rpms
 
