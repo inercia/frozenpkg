@@ -138,7 +138,7 @@ class FrozenRPM:
 
         buildroot_projdir = os.path.normpath(buildroot_topdir + "/" + install_prefix)
 
-
+        # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
         rpmspec = rpmspec.replace("@TOP_DIR@",         top_rpmbuild_dir)
         rpmspec = rpmspec.replace("@PKG_NAME@",        pkg_name)
@@ -168,9 +168,13 @@ class FrozenRPM:
         if spec_file:
             spec_file.close()
 
+        # create a tar file at SOURCES/.
+        # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
+        # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
         self.createTar(buildroot_topdir, buildroot_projdir, tarfile)
 
+        # launch rpmbuild
         rpmbuild = [
                     "rpmbuild",
                     "--buildroot", buildroot_topdir,
@@ -188,6 +192,7 @@ class FrozenRPM:
             print stdout
             return []
 
+        # now try to find the RPMs we have built
         result_rpms = []
         for arch_dir in os.listdir(top_rpmbuild_dir + "/RPMS"):
             full_arch_dir = os.path.abspath(top_rpmbuild_dir + "/RPMS/" + arch_dir)
