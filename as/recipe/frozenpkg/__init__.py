@@ -58,7 +58,7 @@ The @PKG_NAME@ package.
 
 
 
-class FrozenRPM:
+class FrozenRPM(object):
 
     def __init__(self, buildout, name, options):
         self.name, self.options = name, options
