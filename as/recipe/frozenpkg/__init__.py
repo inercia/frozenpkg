@@ -2,15 +2,17 @@
 
 import logging
 import os
-import zc.buildout
 import shutil
 import tempfile
+
+import zc.buildout
 import glob
-import subprocess
 import fnmatch
+
 import subprocess
 
-
+import setuptools
+from setuptools.command.easy_install import easy_install
 
 RPM_SPEC_TEMPLATE = """
 
@@ -63,9 +65,51 @@ class FrozenRPM(object):
     def __init__(self, buildout, name, options):
         self.name, self.options = name, options
         self.buildout = buildout
+        self.debug = False
 
     def _log(self, msg):
-        logging.getLogger(self.name).info(msg)
+        if self.debug:
+            logging.getLogger(self.name).info(msg)
+
+
+    def copyNeededEggs(self, root_dir, buildroot):
+        """
+        Copy the eggs
+        """
+        python_libdir = glob.glob(buildroot + "/lib/python*")[0]
+
+        eggs_sdir    = self.buildout['buildout']['eggs-directory']
+        eggs_devsdir = self.buildout['buildout']['develop-eggs-directory']
+        eggs_ddir    = os.path.normpath(python_libdir + "/site-packages/")
+
+        eggs = [
+            r.strip()
+            for r in self.options.get('eggs', self.name).split('\n')
+            if r.strip()]
+
+        for egg_name in eggs:
+            for egg_path in os.listdir(eggs_sdir):
+                if fnmatch.fnmatch(egg_path, egg_name + "*.egg"):
+                    self._log('Copying egg %s to %s' % (egg_path, python_libdir))
+
+                    egg_src  = os.path.normpath(eggs_sdir + "/" + os.path.basename(egg_path))
+                    egg_dest = os.path.normpath(eggs_ddir + "/" + os.path.basename(egg_path))
+
+                    shutil.copytree(egg_src, egg_dest)
+
+            for egg_path in os.listdir(eggs_devsdir):
+                if fnmatch.fnmatch(egg_path, egg_name + "*.egg-link"):
+                    egg_lnk_src  = os.path.normpath(eggs_devsdir + "/" + os.path.basename(egg_path))
+
+                    with open(egg_lnk_src) as f:
+                        egg_src = f.readline().strip()
+                        egg_dest = os.path.normpath(eggs_ddir + "/" + egg_name)
+
+                        self._log('Copying egg link %s to %s' % (egg_src, egg_dest))
+                        shutil.copytree(egg_src, egg_dest)
+                        
+                        self._log('Fixing egg-info')
+                        shutil.move (egg_dest + "/" + egg_name + ".egg-info", eggs_ddir)
 
 
     def copyNeededFiles(self, root_dir, buildroot):
@@ -87,27 +131,7 @@ class FrozenRPM(object):
 
         shutil.copytree(lib_sdir, lib_ddir)
 
-        # copy the eggs
-        python_libdir = glob.glob(buildroot + "/lib/python*")[0]
-
-        eggs_sdir = self.buildout['buildout']['eggs-directory']
-        eggs_ddir = os.path.normpath(python_libdir + "/site-packages/")
-
-        eggs = [
-            r.strip()
-            for r in self.options.get('eggs', self.name).split('\n')
-            if r.strip()]
-
-        for egg_name in eggs:
-            for egg_path in os.listdir(eggs_sdir):
-                if fnmatch.fnmatch(egg_path, egg_name + "*.egg"):
-                    self._log('Copying egg %s to %s' % (egg_path, python_libdir))
-
-                    egg_src  = os.path.normpath(eggs_sdir + "/" + os.path.basename(egg_path))
-                    egg_dest = os.path.normpath(eggs_ddir + "/" + os.path.basename(egg_path))
-
-                    shutil.copytree(egg_src, egg_dest)
-
+        self.copyNeededEggs(root_dir, buildroot)
 
 
     def createTar(self, root_dir, buildroot, tarfile):
@@ -120,6 +144,8 @@ class FrozenRPM(object):
         self._log('Creating tar file %s' % (tarfile))
         os.system('cd "%(root_dir)s"; tar cfz "%(tarfile)s" *' % vars())
 
+        #distutils.archive_util.make_tarball (tarfile, root_dir, compress=None, verbose=1)
+        return tarfile
 
     def createRpm(self):
         """
@@ -142,6 +168,9 @@ class FrozenRPM(object):
         pkg_license    = self.options.get('pkg-license', 'unknown')
         pkg_group      = self.options.get('pkg-group', 'unknown')
         pkg_autodeps   = self.options.get('pkg-autodeps', 'no')
+
+        if self.options.has_key('debug'):
+            self.debug = True
 
         buildroot_topdir  = top_rpmbuild_dir + "/BUILDROOT/" + pkg_name
 
@@ -183,7 +212,7 @@ class FrozenRPM(object):
         # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
-        self.createTar(buildroot_topdir, buildroot_projdir, tarfile)
+        tarfile = self.createTar(buildroot_topdir, buildroot_projdir, tarfile)
 
         # launch rpmbuild
         rpmbuild = [
