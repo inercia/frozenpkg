@@ -239,7 +239,7 @@ class FrozenRPM(object):
         # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
-        tarfile = self._createTar(buildroot_projdir, tarfile)
+        tarfile = self._createTar(buildroot_topdir, tarfile)
 
         # launch rpmbuild
         rpmbuild = [
