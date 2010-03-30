@@ -158,8 +158,8 @@ class FrozenRPM(object):
                     print e
 
         # copy the local libs
-        lib_sdir     = os.path.abspath(self.buildout['buildout']['directory'] + '/lib/site-packages')
-        lib_ddir     = os.path.abspath(buildroot + '/lib/site-packages')
+        lib_sdir     = os.path.abspath(self.buildout['buildout']['directory'] + '/lib/python2.6/site-packages')
+        lib_ddir     = os.path.abspath(buildroot + '/lib/python2.6/site-packages')
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         shutil.copytree(lib_sdir, lib_ddir)
