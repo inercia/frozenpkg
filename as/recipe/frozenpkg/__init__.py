@@ -116,13 +116,25 @@ class FrozenRPM(object):
         # copy the libs
         lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
         lib_ddir = os.path.normpath(buildroot + "/lib")
-
+        rel_lib_ddir = lib_ddir.replace(root_dir, "")
+        
         shutil.copytree(lib_sdir, lib_ddir)
 
         replacements = replacements + [
-                        (lib_sdir, lib_ddir.replace(root_dir, ""))
+                        (lib_sdir, rel_lib_ddir)
                        ]
 
+        # here comes a really dirty hack !!!
+        # in order to put the new library in front of the PYTHONPATH, we 
+        # replace "sys.path[0:0] = [" by the same string PLUS the new
+        # library path...
+        base_string     = "sys.path[0:0] = ["
+        new_base_string = base_string + "\n" + rel_lib_ddir + ","
+        
+        replacements = replacements + [
+                        (base_string, new_base_string)
+                       ]
+        
         return replacements
 
 
@@ -293,7 +305,8 @@ class FrozenRPM(object):
         self._fixScripts(replacements, buildroot_projdir)
         
         # create a tar file at SOURCES/.
-        # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
+        # we can pass a tar file to rpmbuild, so it is easier as we may need 
+        # a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
         tarfile = self._createTar(buildroot_topdir, tarfile)
