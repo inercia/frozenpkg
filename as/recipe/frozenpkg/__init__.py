@@ -120,11 +120,11 @@ class FrozenRPM(object):
 
         replacements  = []
 
-        buildroot     = os.path.join(root_dir, install_prefix)
+        buildroot     = os.path.abspath(root_dir + "/" + install_prefix)
 
         # copy the python bins
         bins_sdir   = self.buildout['buildout']['bin-directory']
-        bins_ddir   = os.path.join(buildroot, "bin")
+        bins_ddir   = os.path.abspath(buildroot + "/bin")
 
         try: os.makedirs(bins_ddir)
         except Exception: pass
@@ -137,32 +137,29 @@ class FrozenRPM(object):
                            ]
 
         # copy the system lib, if we want...
-        if self.options.has_key('copy-sys') and \
-          (self.options['copy-sys'] == "yes" or self.options['copy-sys'] == "true"):
+        if self.options.has_key('skip-sys') and \
+          (self.options['skip-sys'] != "yes" or self.options['skip-sys'] != "true"):
           
-            lib_ddir = os.path.join(buildroot, 'lib')
-          
+            lib_ddir    = os.path.abspath(buildroot + '/lib')          
             stdlib_dirs = [os.path.dirname(os.__file__)]
-            if sys.platform == 'win32':
-                stdlib_dirs.append(os.path.join(os.path.dirname(stdlib_dirs[0]), 'DLLs'))
-            elif sys.platform == 'darwin':
-                stdlib_dirs.append(os.path.join(stdlib_dirs[0], 'site-packages'))
                 
             for stdlib_dir in stdlib_dirs:
                 if not os.path.isdir(stdlib_dir):
                     continue
 
+                self._log('Copying %s' % stdlib_dir)
                 try:
                     for fn in os.listdir(stdlib_dir):
                         if fn != 'site-packages':
-                            self._copyfile(os.path.join(stdlib_dir, fn), os.path.join(lib_ddir, fn))
+                            self._copyfile(os.path.abspath(stdlib_dir + "/" + fn),
+                                           os.path.abspath(lib_ddir + "/" + fn))
                 except Exception, e:
                     self._log('ERROR: when copying files')
                     print e
 
         # copy the local libs
-        lib_sdir     = os.path.join(self.buildout['buildout']['directory'], 'lib', 'site-packages')
-        lib_ddir     = os.path.join(buildroot, 'lib', 'site-packages')
+        lib_sdir     = os.path.abspath(self.buildout['buildout']['directory'] + '/lib/site-packages')
+        lib_ddir     = os.path.abspath(buildroot + '/lib/site-packages')
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         shutil.copytree(lib_sdir, lib_ddir)
@@ -284,11 +281,11 @@ class FrozenRPM(object):
 
         top_rpmbuild_dir  = os.path.abspath(tempfile.mkdtemp(suffix= '', prefix = 'rpmbuild-'))
 
-        os.mkdir(os.path.join(top_rpmbuild_dir, "BUILDROOT"))
-        os.mkdir(os.path.join(top_rpmbuild_dir, "RPMS"))
-        os.mkdir(os.path.join(top_rpmbuild_dir, "SOURCES"))
-        os.mkdir(os.path.join(top_rpmbuild_dir, "SPECS"))
-        os.mkdir(os.path.join(top_rpmbuild_dir, "SRPMS"))
+        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/BUILDROOT"))
+        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/RPMS"))
+        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/SOURCES"))
+        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/SPECS"))
+        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/SRPMS"))
 
         pkg_name       = self.options['pkg-name']
         pkg_version    = self.options.get('pkg-version', '0.1')
@@ -302,11 +299,11 @@ class FrozenRPM(object):
         if self.options.has_key('debug'):
             self.debug = True
 
-        buildroot_topdir  = os.path.join(top_rpmbuild_dir, "BUILDROOT", pkg_name)
+        buildroot_topdir  = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
 
         install_prefix    = self.options.get('install-prefix', os.path.join('opt', pkg_name))
 
-        buildroot_projdir = os.path.join(buildroot_topdir, install_prefix)
+        buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + install_prefix)
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
@@ -324,7 +321,7 @@ class FrozenRPM(object):
 
         # create the spec file
         os.makedirs(buildroot_topdir)
-        spec_filename = os.path.join(buildroot_topdir, pkg_name + ".spec")
+        spec_filename = os.path.abspath(buildroot_topdir + "/" + pkg_name + ".spec")
 
         self._log('Using spec file %s' % (spec_filename))
         spec_file = None
