@@ -120,11 +120,11 @@ class FrozenRPM(object):
 
         replacements  = []
 
-        buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
+        buildroot     = os.path.join(root_dir, install_prefix)
 
         # copy the python bins
         bins_sdir   = self.buildout['buildout']['bin-directory']
-        bins_ddir   = os.path.normpath(buildroot + "/bin")
+        bins_ddir   = os.path.join(buildroot, "bin")
 
         try: os.makedirs(bins_ddir)
         except Exception: pass
@@ -151,10 +151,6 @@ class FrozenRPM(object):
             for stdlib_dir in stdlib_dirs:
                 if not os.path.isdir(stdlib_dir):
                     continue
-                if hasattr(os, 'symlink'):
-                    self._log('Symlinking Python modules')
-                else:
-                    self._log('Copying Python modules')
 
                 try:
                     for fn in os.listdir(stdlib_dir):
@@ -164,13 +160,9 @@ class FrozenRPM(object):
                     self._log('ERROR: when copying files')
                     print e
 
-            #replacements = replacements + [
-            #               (lib_sdir, rel_lib_ddir)
-            #              ]
-
         # copy the local libs
-        lib_sdir     = os.path.join(self.buildout['buildout']['directory'], 'lib')
-        lib_ddir     = os.path.join(buildroot, 'lib')
+        lib_sdir     = os.path.join(self.buildout['buildout']['directory'], 'lib', 'site-packages')
+        lib_ddir     = os.path.join(buildroot, 'lib', 'site-packages')
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         shutil.copytree(lib_sdir, lib_ddir)
