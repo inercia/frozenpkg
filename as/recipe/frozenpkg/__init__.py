@@ -84,11 +84,14 @@ class FrozenRPM(object):
         except Exception, e:
             print "ERROR: when replacing strings in %s" % filename, e
 
+    def _getPythonLibDir(self, root):
+        return os.path.abspath(glob.glob(root + "/lib/python*")[0])
+
     def _copyNeededEggs(self, root_dir, buildroot):
         """
         Copy the eggs
         """
-        python_libdir = glob.glob(buildroot + "/lib/python*")[0]
+        python_libdir = self._getPythonLibDir(buildroot)
 
         eggs_sdir    = self.buildout['buildout']['eggs-directory']
         eggs_devsdir = self.buildout['buildout']['develop-eggs-directory']
@@ -222,9 +225,13 @@ class FrozenRPM(object):
         # fix the copied scripts, by replacing some paths by the new
         # installation paths
         if self.options.has_key('scripts'):
-            
+
+            new_bin_dir = install_prefix + "/bin"
+            new_lib_dir = self._getPythonLibDir(buildroot_projdir)
+
             str_replaces = [
-                (self.buildout['buildout']['bin-directory'], install_prefix + "/bin")
+                (self.buildout['buildout']['bin-directory'],  new_bin_dir),
+                (self.buildout['buildout']['eggs-directory'], new_lib_dir)
             ]
 
             fix_scripts = [
@@ -241,6 +248,7 @@ class FrozenRPM(object):
                     
                     self._log('Fixing paths at %s' % (new_scr_path))
                     for orig_str, new_str in str_replaces:
+                        self._log('... replacing %s by %s' % (orig_str, new_str))                        
                         self._replaceInFile(new_scr_path, orig_str, new_str)
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
