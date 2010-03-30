@@ -284,11 +284,11 @@ class FrozenRPM(object):
 
         top_rpmbuild_dir  = os.path.abspath(tempfile.mkdtemp(suffix= '', prefix = 'rpmbuild-'))
 
-        os.mkdir(top_rpmbuild_dir + "/BUILDROOT")
-        os.mkdir(top_rpmbuild_dir + "/RPMS")
-        os.mkdir(top_rpmbuild_dir + "/SOURCES")
-        os.mkdir(top_rpmbuild_dir + "/SPECS")
-        os.mkdir(top_rpmbuild_dir + "/SRPMS")
+        os.mkdir(os.path.join(top_rpmbuild_dir, "BUILDROOT"))
+        os.mkdir(os.path.join(top_rpmbuild_dir, "RPMS"))
+        os.mkdir(os.path.join(top_rpmbuild_dir, "SOURCES"))
+        os.mkdir(os.path.join(top_rpmbuild_dir, "SPECS"))
+        os.mkdir(os.path.join(top_rpmbuild_dir, "SRPMS"))
 
         pkg_name       = self.options['pkg-name']
         pkg_version    = self.options.get('pkg-version', '0.1')
@@ -302,11 +302,11 @@ class FrozenRPM(object):
         if self.options.has_key('debug'):
             self.debug = True
 
-        buildroot_topdir  = top_rpmbuild_dir + "/BUILDROOT/" + pkg_name
+        buildroot_topdir  = os.path.join(top_rpmbuild_dir, "BUILDROOT", pkg_name)
 
-        install_prefix    = self.options.get('install-prefix', '/opt/' + pkg_name)
+        install_prefix    = self.options.get('install-prefix', os.path.join('opt', pkg_name))
 
-        buildroot_projdir = os.path.normpath(buildroot_topdir + "/" + install_prefix)
+        buildroot_projdir = os.path.join(buildroot_topdir, install_prefix)
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
@@ -324,7 +324,7 @@ class FrozenRPM(object):
 
         # create the spec file
         os.makedirs(buildroot_topdir)
-        spec_filename = os.path.normpath(buildroot_topdir + "/" + pkg_name + ".spec")
+        spec_filename = os.path.join(buildroot_topdir, pkg_name + ".spec")
 
         self._log('Using spec file %s' % (spec_filename))
         spec_file = None
@@ -341,6 +341,7 @@ class FrozenRPM(object):
         replacements  = []
 
         # copy all the files we need
+        self._log("Build root = %s" % buildroot_projdir)
         replacements = replacements + self._copyPythonDist(buildroot_topdir, install_prefix)
         replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)        
 
