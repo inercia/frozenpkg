@@ -255,7 +255,7 @@ class FrozenRPM(object):
         replacements  = []
 
         # copy all the files we need
-        replacements = replacements + self._copyPythonDist(buildroot_topdir, buildroot_projdir)
+        replacements = replacements + self._copyPythonDist(buildroot_topdir, install_prefix)
         replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)
         
         # fix the copied scripts, by replacing some paths by the new
