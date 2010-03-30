@@ -15,6 +15,12 @@ import subprocess
 import setuptools
 from setuptools.command.easy_install import easy_install
 
+
+SKIP_SYS_DIRS = [
+    'site-packages',
+    'dist-packages'
+]
+
 RPM_SPEC_TEMPLATE = """
 
 # empty lines
@@ -155,7 +161,7 @@ class FrozenRPM(object):
             self._log('Copying %s' % d)
             try:
                 for fn in os.listdir(d):
-                    if fn != 'site-packages':
+                    if not fn in SKIP_SYS_DIRS:
                         self._copyfile(os.path.abspath(d + "/" + fn),
                                        os.path.abspath(lib_ddir + "/" + fn))
             except Exception, e:
