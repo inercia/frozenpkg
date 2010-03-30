@@ -227,16 +227,22 @@ class FrozenRPM(object):
             ]
 
             fix_scripts = [
-                buildroot_projdir + "/bin/" + r.strip()
+                r.strip()
                 for r in self.options['scripts'].split('\n') if r.strip()]
 
             for scr in fix_scripts:
-                if os.path.exists(scr):
-                    self._log('Fixing paths at %s' % (scr))
+                full_scr_path = self.buildout['buildout']['bin-directory'] + "/bin/" + scr
+                new_scr_path  = buildroot_projdir + "/bin/" + scr
+                
+                if os.path.exists(full_scr_path):
+                    self._log('Copying %s' % (full_scr_path))
+                    shutil.copyfile (full_scr_path, new_scr_path)
+                    
+                    self._log('Fixing paths at %s' % (new_scr_path))
                     for orig_str, new_str in str_replaces:
-                        self._replaceInFile(scr, orig_str, new_str)
+                        self._replaceInFile(new_scr_path, orig_str, new_str)
                 else:
-                    self._log('WARNING: script %s not found' % (scr))
+                    self._log('WARNING: script %s not found' % (full_scr_path))
 
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
