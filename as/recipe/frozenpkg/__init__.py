@@ -51,6 +51,8 @@ Packager:             @PKG_PACKAGER@
 Group:                @PKG_GROUP@
 AutoReqProv:          @PKG_AUTODEPS@
 
+@ADDITIONAL_OPS@
+
 %description
 
 The @PKG_NAME@ package.
@@ -103,7 +105,7 @@ class FrozenRPM(object):
             os.makedirs(os.path.dirname(dest))
         self._log('Copying to %s' % dest)
         if os.path.isdir(src):
-            shutil.copytree(src, dest, True)
+            shutil.copytree(src, dest, symlinks = False)
         else:
             shutil.copy2(src, dest)
 
@@ -286,6 +288,7 @@ class FrozenRPM(object):
         """
         Create a RPM
         """
+        additional_ops = []
 
         top_rpmbuild_dir  = os.path.abspath(tempfile.mkdtemp(suffix= '', prefix = 'rpmbuild-'))
 
@@ -304,13 +307,14 @@ class FrozenRPM(object):
         pkg_group      = self.options.get('pkg-group', 'unknown')
         pkg_autodeps   = self.options.get('pkg-autodeps', 'no')
 
+        if self.options.has_key('pkg-deps'):
+            additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
+
         if self.options.has_key('debug'):
             self.debug = True
 
         buildroot_topdir  = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
-
         install_prefix    = self.options.get('install-prefix', os.path.join('opt', pkg_name))
-
         buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + install_prefix)
 
         # replace the variables in the "spec" template
@@ -325,7 +329,9 @@ class FrozenRPM(object):
         rpmspec = rpmspec.replace("@PKG_GROUP@",       pkg_group)
         rpmspec = rpmspec.replace("@PKG_AUTODEPS@",    pkg_autodeps)
         rpmspec = rpmspec.replace("@INSTALL_PREFIX@",  install_prefix)
-        rpmspec = rpmspec.replace("@BUILD_ROOT@",      buildroot_topdir)
+        rpmspec = rpmspec.replace("@BUILD_ROOT@",      buildroot_topdir)        
+        rpmspec = rpmspec.replace("@ADDITIONAL_OPS@",  "\n".join(additional_ops))
+
 
         # create the spec file
         os.makedirs(buildroot_topdir)
