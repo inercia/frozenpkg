@@ -87,10 +87,13 @@ class FrozenRPM(object):
     def _getPythonLibDir(self, root):
         return os.path.abspath(glob.glob(root + "/lib/python*")[0])
 
-    def _copyNeededEggs(self, root_dir, buildroot):
+    def _copyNeededEggs(self, root_dir, install_prefix):
         """
         Copy the eggs
         """
+        replacements  = []
+        
+        buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
         python_libdir = self._getPythonLibDir(buildroot)
 
         eggs_sdir    = self.buildout['buildout']['eggs-directory']
@@ -106,12 +109,15 @@ class FrozenRPM(object):
             # first, look for any eggs we need from the "eggs" directory
             for egg_path in os.listdir(eggs_sdir):
                 if fnmatch.fnmatch(egg_path, egg_name + "*.egg"):
-                    self._log('Copying egg %s to %s' % (egg_path, python_libdir))
+                    self._log('Copying egg %s to %s' % (egg_path, eggs_ddir))
 
-                    egg_src  = os.path.normpath(eggs_sdir + "/" + os.path.basename(egg_path))
-                    egg_dest = os.path.normpath(eggs_ddir + "/" + os.path.basename(egg_path))
+                    egg_src  = os.path.abspath(eggs_sdir + "/" + os.path.basename(egg_path))
+                    egg_dest = os.path.abspath(eggs_ddir + "/" + os.path.basename(egg_path))
 
                     shutil.copytree(egg_src, egg_dest)
+                    
+                    egg_dest_rel = egg_dest.replace(root_dir, "")
+                    replacements = replacements + [(egg_src, egg_dest_rel)]
 
             # now look for the "develop-eggs"
             for egg_path in os.listdir(eggs_devsdir):
@@ -124,16 +130,28 @@ class FrozenRPM(object):
 
                         self._log('Copying egg %s link to %s' % (egg_name, egg_dest))
                         shutil.copytree(egg_src, egg_dest)
+
+                        egg_dest_rel = egg_dest.replace(root_dir, "")
+                        replacements = replacements + [(egg_src, egg_dest_rel)]
                         
                         self._log('Fixing egg-info')
                         shutil.move (egg_dest + "/" + egg_name + ".egg-info", eggs_ddir)
 
 
-    def _copyPythonDist(self, root_dir, buildroot):
+        return replacements
+        
+    def _copyPythonDist(self, root_dir, install_prefix):
+
+        replacements  = []
+        
+        buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
 
         # copy the python bins
         bins_sdir   = self.buildout['buildout']['bin-directory']
         bins_ddir   = os.path.normpath(buildroot + "/bin")
+
+        new_bin_dir = install_prefix + "/bin"
+        new_lib_dir = self._getPythonLibDir(install_prefix)
 
         try: os.makedirs(bins_ddir)
         except Exception: pass
@@ -141,12 +159,21 @@ class FrozenRPM(object):
         for pybin in glob.glob(bins_sdir + "/python"):
             self._log('Copying python binary: %s' % pybin)
             shutil.copy(pybin, bins_ddir)
+            replacements = replacements + [
+                            (pybin, lib_ddir.replace(bins_ddir, ""))
+                           ]
 
         # copy the libs
         lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
         lib_ddir = os.path.normpath(buildroot + "/lib")
 
         shutil.copytree(lib_sdir, lib_ddir)
+
+        replacements = replacements + [
+                        (lib_sdir, lib_ddir.replace(root_dir, ""))
+                       ]
+
+        return replacements
 
 
     def _createTar(self, root_dir, tarfile):
@@ -218,20 +245,17 @@ class FrozenRPM(object):
         if spec_file:
             spec_file.close()
 
+        replacements  = []
+
         # copy all the files we need
-        self._copyPythonDist(buildroot_topdir, buildroot_projdir)
-        self._copyNeededEggs(buildroot_topdir, buildroot_projdir)
+        replacements = replacements + self._copyPythonDist(buildroot_topdir, buildroot_projdir)
+        replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)
         
         # fix the copied scripts, by replacing some paths by the new
         # installation paths
         if self.options.has_key('scripts'):
 
-            new_bin_dir = install_prefix + "/bin"
-            new_lib_dir = self._getPythonLibDir(install_prefix)
-
-            str_replaces = [
-                (self.buildout['buildout']['bin-directory'],  new_bin_dir),
-                (self.buildout['buildout']['eggs-directory'], new_lib_dir),
+            replacements = replacements + [
                 (self.buildout['buildout']['directory'],      install_prefix)
             ]
 
@@ -248,7 +272,7 @@ class FrozenRPM(object):
                     shutil.copyfile (full_scr_path, new_scr_path)
                     
                     self._log('Fixing paths at %s' % (new_scr_path))
-                    for orig_str, new_str in str_replaces:
+                    for orig_str, new_str in replacements:
                         self._log('... replacing %s by %s' % (orig_str, new_str))                        
                         self._replaceInFile(new_scr_path, orig_str, new_str)
                 else:
