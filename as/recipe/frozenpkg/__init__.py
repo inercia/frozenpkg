@@ -159,7 +159,7 @@ class FrozenRPM(object):
             self._log('Copying python binary: %s' % pybin)
             shutil.copy(pybin, bins_ddir)
             replacements = replacements + [
-                            (pybin, lib_ddir.replace(bins_ddir, ""))
+                            (pybin, bins_ddir.replace(root_dir, ""))
                            ]
 
         # copy the libs
