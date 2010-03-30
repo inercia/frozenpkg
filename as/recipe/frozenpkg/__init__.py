@@ -142,7 +142,7 @@ class FrozenRPM(object):
           
             stdlib_dirs = [os.path.dirname(os.__file__)]
             if sys.platform == 'win32':
-                stdlib_dirs.append(join(os.path.dirname(stdlib_dirs[0]), 'DLLs'))
+                stdlib_dirs.append(os.path.join(os.path.dirname(stdlib_dirs[0]), 'DLLs'))
             elif sys.platform == 'darwin':
                 stdlib_dirs.append(os.path.join(stdlib_dirs[0], 'site-packages'))
                 
@@ -157,7 +157,7 @@ class FrozenRPM(object):
                 try:
                     for fn in os.listdir(stdlib_dir):
                         if fn != 'site-packages':
-                            self._copyfile(join(stdlib_dir, fn), join(lib_dir, fn))
+                            self._copyfile(os.path.join(stdlib_dir, fn), os.path.join(lib_dir, fn))
                 except Exception, e:
                     self._log('ERROR: when copying files')
                     print e
