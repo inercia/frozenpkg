@@ -84,6 +84,28 @@ class FrozenRPM(object):
         except Exception, e:
             print "ERROR: when replacing strings in %s" % filename, e
 
+    def _copyfile(self, src, dest, symlink=True):
+        if not os.path.exists(src):
+            # Some bad symlink in the src
+            logger.warn('Cannot find file %s (bad symlink)', src)
+            return
+        if os.path.exists(dest):
+            logger.debug('File %s already exists', dest)
+            return
+        if not os.path.exists(os.path.dirname(dest)):
+            logger.info('Creating parent directories for %s' % os.path.dirname(dest))
+            os.makedirs(os.path.dirname(dest))
+        if symlink and hasattr(os, 'symlink'):
+            logger.info('Symlinking %s', dest)
+            os.symlink(os.path.abspath(src), dest)
+        else:
+            logger.info('Copying to %s', dest)
+            if os.path.isdir(src):
+                shutil.copytree(src, dest, True)
+            else:
+                shutil.copy2(src, dest)
+
+
     def _getPythonLibDir(self, root):
         assert (root != None)
         assert (len(root) > 0)
@@ -114,16 +136,33 @@ class FrozenRPM(object):
                            ]
 
         # copy the system lib, if we want...
-        if self.options.has_key('sys-lib'):
-            lib_sdir = self.options['sys-lib']
-            lib_ddir = os.path.normpath(buildroot + "/lib")
-            rel_lib_ddir = lib_ddir.replace(root_dir, "")
+        if self.options.has_key('copy-sys') and 
+          (self.options['copy-sys'] == "yes" or self.options['copy-sys'] == "true"):
+          
+            stdlib_dirs = [os.path.dirname(os.__file__)]
+            if sys.platform == 'win32':
+                stdlib_dirs.append(join(os.path.dirname(stdlib_dirs[0]), 'DLLs'))
+            elif sys.platform == 'darwin':
+                stdlib_dirs.append(join(stdlib_dirs[0], 'site-packages'))
+                
+            for stdlib_dir in stdlib_dirs:
+                if not os.path.isdir(stdlib_dir):
+                    continue
+                if hasattr(os, 'symlink'):
+                    self._log('Symlinking Python modules')
+                else:
+                    self._log('Copying Python modules')
 
-            shutil.copytree(lib_sdir, lib_ddir)
+                try:
+                    for fn in os.listdir(stdlib_dir):
+                        if fn != 'site-packages':
+                            self._copyfile(join(stdlib_dir, fn), join(lib_dir, fn))
+                except Exception, e:
+                    self._log('ERROR: when copying files')
 
-            replacements = replacements + [
-                           (lib_sdir, rel_lib_ddir)
-                          ]
+            #replacements = replacements + [
+            #               (lib_sdir, rel_lib_ddir)
+            #              ]
 
         # copy the local libs
         lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
