@@ -81,7 +81,7 @@ class FrozenRPM(object):
                 f.seek(0)
                 f.write(fcontents)
         except Exception, e:
-            print "ERROR: when replacing in %s" % filename, e
+            print "ERROR: when replacing strings in %s" % filename, e
 
     def _copyNeededEggs(self, root_dir, buildroot):
         """
@@ -239,7 +239,7 @@ class FrozenRPM(object):
         # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
-        tarfile = self._createTar(buildroot_topdir, buildroot_projdir, tarfile)
+        tarfile = self._createTar(buildroot_projdir, tarfile)
 
         # launch rpmbuild
         rpmbuild = [
