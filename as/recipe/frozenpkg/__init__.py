@@ -136,7 +136,7 @@ class FrozenRPM(object):
                            ]
 
         # copy the system lib, if we want...
-        if self.options.has_key('copy-sys') and 
+        if self.options.has_key('copy-sys') and \
           (self.options['copy-sys'] == "yes" or self.options['copy-sys'] == "true"):
           
             stdlib_dirs = [os.path.dirname(os.__file__)]
