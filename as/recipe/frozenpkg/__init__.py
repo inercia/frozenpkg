@@ -130,6 +130,9 @@ class FrozenRPM(object):
         """
         Copy the eggs
         """
+        assert (root_dir != None and len(root_dir) > 0)
+        assert (install_prefix != None and len(install_prefix) > 0)
+        
         replacements  = []
         
         buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
