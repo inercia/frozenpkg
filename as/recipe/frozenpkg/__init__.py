@@ -183,6 +183,32 @@ class FrozenRPM(object):
         return replacements
 
 
+    def _fixScripts(self, replacements, buildroot_projdir):
+        """
+        Fix the copied scripts, by replacing some paths by the new
+        installation paths
+        """
+        if self.options.has_key('scripts'):
+
+            fix_scripts = [
+                r.strip()
+                for r in self.options['scripts'].split('\n') if r.strip()]
+
+            for scr in fix_scripts:
+                full_scr_path = self.buildout['buildout']['bin-directory'] + "/" + scr
+                new_scr_path  = buildroot_projdir + "/bin/" + scr
+                
+                if os.path.exists(full_scr_path):
+                    self._log('Copying %s' % (full_scr_path))
+                    shutil.copyfile (full_scr_path, new_scr_path)
+                    
+                    self._log('Fixing paths at %s' % (new_scr_path))
+                    for orig_str, new_str in replacements:
+                        self._log('... replacing %s by %s' % (orig_str, new_str))                        
+                        self._replaceInFile(new_scr_path, orig_str, new_str)
+                else:
+                    self._log('WARNING: script %s not found' % (full_scr_path))
+        
     def _createTar(self, root_dir, tarfile):
         """
         Create a tar file with all the needed files
@@ -256,35 +282,16 @@ class FrozenRPM(object):
 
         # copy all the files we need
         replacements = replacements + self._copyPythonDist(buildroot_topdir, install_prefix)
-        replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)
-        
+        replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)        
+
+        replacements = replacements + [
+            (self.buildout['buildout']['directory'],      install_prefix)
+        ]
+
         # fix the copied scripts, by replacing some paths by the new
         # installation paths
-        if self.options.has_key('scripts'):
-
-            replacements = replacements + [
-                (self.buildout['buildout']['directory'],      install_prefix)
-            ]
-
-            fix_scripts = [
-                r.strip()
-                for r in self.options['scripts'].split('\n') if r.strip()]
-
-            for scr in fix_scripts:
-                full_scr_path = self.buildout['buildout']['bin-directory'] + "/" + scr
-                new_scr_path  = buildroot_projdir + "/bin/" + scr
-                
-                if os.path.exists(full_scr_path):
-                    self._log('Copying %s' % (full_scr_path))
-                    shutil.copyfile (full_scr_path, new_scr_path)
-                    
-                    self._log('Fixing paths at %s' % (new_scr_path))
-                    for orig_str, new_str in replacements:
-                        self._log('... replacing %s by %s' % (orig_str, new_str))                        
-                        self._replaceInFile(new_scr_path, orig_str, new_str)
-                else:
-                    self._log('WARNING: script %s not found' % (full_scr_path))
-
+        self._fixScripts(replacements, buildroot_projdir)
+        
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
