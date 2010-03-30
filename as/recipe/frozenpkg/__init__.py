@@ -113,11 +113,23 @@ class FrozenRPM(object):
                             (pybin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(pybin))
                            ]
 
-        # copy the libs
+        # copy the system lib, if we want...
+        if self.options.has_key('sys-lib'):
+            lib_sdir = self.options['sys-lib']
+            lib_ddir = os.path.normpath(buildroot + "/lib")
+            rel_lib_ddir = lib_ddir.replace(root_dir, "")
+
+            shutil.copytree(lib_sdir, lib_ddir)
+
+            replacements = replacements + [
+                           (lib_sdir, rel_lib_ddir)
+                          ]
+
+        # copy the local libs
         lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
         lib_ddir = os.path.normpath(buildroot + "/lib")
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
-        
+
         shutil.copytree(lib_sdir, lib_ddir)
 
         replacements = replacements + [
@@ -216,8 +228,9 @@ class FrozenRPM(object):
                     
                     self._log('Fixing paths at %s' % (new_scr_path))
                     for orig_str, new_str in replacements:
-                        self._log('... replacing %s by %s' % (orig_str, new_str))                        
+                        #self._log('... replacing %s by %s' % (orig_str, new_str))                        
                         self._replaceInFile(new_scr_path, orig_str, new_str)
+                        os.chmod(new_scr_path, 755)
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
         
