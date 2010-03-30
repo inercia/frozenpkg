@@ -144,7 +144,7 @@ class FrozenRPM(object):
             if sys.platform == 'win32':
                 stdlib_dirs.append(join(os.path.dirname(stdlib_dirs[0]), 'DLLs'))
             elif sys.platform == 'darwin':
-                stdlib_dirs.append(join(stdlib_dirs[0], 'site-packages'))
+                stdlib_dirs.append(os.path.join(stdlib_dirs[0], 'site-packages'))
                 
             for stdlib_dir in stdlib_dirs:
                 if not os.path.isdir(stdlib_dir):
