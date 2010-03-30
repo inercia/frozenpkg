@@ -160,6 +160,7 @@ class FrozenRPM(object):
                             self._copyfile(join(stdlib_dir, fn), join(lib_dir, fn))
                 except Exception, e:
                     self._log('ERROR: when copying files')
+                    print e
 
             #replacements = replacements + [
             #               (lib_sdir, rel_lib_ddir)
@@ -270,7 +271,7 @@ class FrozenRPM(object):
                     for orig_str, new_str in replacements:
                         #self._log('... replacing %s by %s' % (orig_str, new_str))                        
                         self._replaceInFile(new_scr_path, orig_str, new_str)
-                        os.chmod(new_scr_path, 755)
+                        #os.chmod(new_scr_path, 755)
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
         
