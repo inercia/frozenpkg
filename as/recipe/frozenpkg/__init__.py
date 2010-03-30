@@ -74,12 +74,12 @@ class FrozenRPM(object):
     def _replaceInFile(self, filename, orig_str, new_str):
         try:
             with open(filename, "r") as f:
-                fcontents = f.read(65535 * 4)
+                content = f.read(65535 * 4)
 
-            fcontents.replace(orig_str, new_str)
+            new_content = content.replace(orig_str, new_str)
 
             with open(filename, "w") as f:
-                f.write(fcontents)
+                f.write(new_content)
 
         except Exception, e:
             print "ERROR: when replacing strings in %s" % filename, e
@@ -232,6 +232,7 @@ class FrozenRPM(object):
             str_replaces = [
                 (self.buildout['buildout']['bin-directory'],  new_bin_dir),
                 (self.buildout['buildout']['eggs-directory'], new_lib_dir)
+                (self.buildout['buildout']['directory'],      install_prefix)
             ]
 
             fix_scripts = [
