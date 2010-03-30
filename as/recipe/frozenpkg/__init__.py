@@ -136,30 +136,32 @@ class FrozenRPM(object):
                             (pybin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(pybin))
                            ]
 
-        # copy the system lib, if we want...
-        if self.options.has_key('skip-sys') and \
-          (self.options['skip-sys'] != "yes" or self.options['skip-sys'] != "true"):
-          
-            lib_ddir    = os.path.abspath(buildroot + '/lib')          
-            stdlib_dirs = [os.path.dirname(os.__file__)]
-                
-            for stdlib_dir in stdlib_dirs:
-                if not os.path.isdir(stdlib_dir):
-                    continue
+        # copy the libs
+        if self.options.has_key('skip-sys') and (self.options['skip-sys'] != "yes" or self.options['skip-sys'] != "true"):          
+            lib_sdirs   = [os.path.dirname(os.__file__)]
+        else:
+            lib_sdirs   = [os.path.abspath(self.buildout['buildout']['directory'] +   \
+                                '/lib/python' + self.options['python-version'])]
+            
+        lib_ddir    = os.path.abspath(buildroot + '/lib')
 
-                self._log('Copying %s' % stdlib_dir)
-                try:
-                    for fn in os.listdir(stdlib_dir):
-                        if fn != 'site-packages':
-                            self._copyfile(os.path.abspath(stdlib_dir + "/" + fn),
-                                           os.path.abspath(lib_ddir + "/" + fn))
-                except Exception, e:
-                    self._log('ERROR: when copying files')
-                    print e
+        for d in lib_sdirs:
+            if not os.path.isdir(d):
+                continue
 
-        # copy the local libs
-        lib_sdir     = os.path.abspath(self.buildout['buildout']['directory'] + '/lib/python2.6/site-packages')
-        lib_ddir     = os.path.abspath(buildroot + '/lib/python2.6/site-packages')
+            self._log('Copying %s' % d)
+            try:
+                for fn in os.listdir(d):
+                    if fn != 'site-packages':
+                        self._copyfile(os.path.abspath(d + "/" + fn),
+                                       os.path.abspath(lib_ddir + "/" + fn))
+            except Exception, e:
+                self._log('ERROR: when copying %s' % d)
+                print e
+
+        # copy the site libs
+        lib_sdir     = os.path.abspath(self.buildout['buildout']['directory'] + '/lib/python' + self.options['python-version'] + '/site-packages')
+        lib_ddir     = os.path.abspath(buildroot + '/lib/python' + self.options['python-version'] + '/site-packages')
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         shutil.copytree(lib_sdir, lib_ddir)
