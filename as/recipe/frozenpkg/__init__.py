@@ -88,19 +88,19 @@ class FrozenRPM(object):
     def _copyfile(self, src, dest, symlink=True):
         if not os.path.exists(src):
             # Some bad symlink in the src
-            self._log('Cannot find file %s (bad symlink)', src)
+            self._log('Cannot find file %s (bad symlink)' % src)
             return
         if os.path.exists(dest):
-            self._log('File %s already exists', dest)
+            self._log('File %s already exists' % dest)
             return
         if not os.path.exists(os.path.dirname(dest)):
             self._log('Creating parent directories for %s' % os.path.dirname(dest))
             os.makedirs(os.path.dirname(dest))
         if symlink and hasattr(os, 'symlink'):
-            self._log('Symlinking %s', dest)
+            self._log('Symlinking %s' % dest)
             os.symlink(os.path.abspath(src), dest)
         else:
-            self._log('Copying to %s', dest)
+            self._log('Copying to %s' % dest)
             if os.path.isdir(src):
                 shutil.copytree(src, dest, True)
             else:
