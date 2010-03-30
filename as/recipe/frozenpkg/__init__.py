@@ -137,13 +137,16 @@ class FrozenRPM(object):
                            ]
 
         # copy the libs
-        if self.options.has_key('skip-sys') and (self.options['skip-sys'] != "yes" or self.options['skip-sys'] != "true"):          
-            lib_sdirs   = [os.path.dirname(os.__file__)]
+        if self.options.has_key('sys-dir'):
+            lib_sdirs   = [os.path.abspath(self.options['sys-dir'])]
         else:
-            lib_sdirs   = [os.path.abspath(self.buildout['buildout']['directory'] +   \
-                                '/lib/python' + self.options['python-version'])]
+            if self.options.has_key('skip-sys') and (self.options['skip-sys'] != "yes" or self.options['skip-sys'] != "true"):          
+                lib_sdirs   = [os.path.dirname(os.__file__)]
+            else:
+                lib_sdirs   = [os.path.abspath(self.buildout['buildout']['directory'] +   \
+                                    '/lib/python' + self.options['python-version'])]
             
-        lib_ddir    = os.path.abspath(buildroot + '/lib')
+        lib_ddir    = os.path.abspath(buildroot + '/lib/python' + self.options['python-version'])
 
         for d in lib_sdirs:
             if not os.path.isdir(d):
