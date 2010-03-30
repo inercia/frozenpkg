@@ -341,7 +341,7 @@ class FrozenRPM(object):
         replacements  = []
 
         # copy all the files we need
-        self._log("Build root = %s" % buildroot_projdir)
+        self._log("Build root = %s" % buildroot_topdir)
         replacements = replacements + self._copyPythonDist(buildroot_topdir, install_prefix)
         replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)        
 
