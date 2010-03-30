@@ -85,6 +85,8 @@ class FrozenRPM(object):
             print "ERROR: when replacing strings in %s" % filename, e
 
     def _getPythonLibDir(self, root):
+        assert (root != None)
+        assert (len(root) > 0)
         return os.path.abspath(glob.glob(root + "/lib/python*")[0])
 
     def _copyNeededEggs(self, root_dir, install_prefix):
@@ -149,9 +151,6 @@ class FrozenRPM(object):
         # copy the python bins
         bins_sdir   = self.buildout['buildout']['bin-directory']
         bins_ddir   = os.path.normpath(buildroot + "/bin")
-
-        new_bin_dir = install_prefix + "/bin"
-        new_lib_dir = self._getPythonLibDir(install_prefix)
 
         try: os.makedirs(bins_ddir)
         except Exception: pass
