@@ -284,7 +284,7 @@ class FrozenRPM(object):
         self._log('Creating tar file %s' % (tarfile))
         
         # warning: these "tar" args work on Linux, but not on Mac
-        os.system('cd "%(root_dir)s"; tar cfz --dereference "%(tarfile)s" *' % vars())
+        os.system('cd "%(root_dir)s"; tar -c -p --dereference -f  "%(tarfile)s" *' % vars())
         return tarfile
 
     def _createRpm(self):
