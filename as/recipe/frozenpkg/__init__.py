@@ -129,7 +129,7 @@ class FrozenRPM(object):
         # replace "sys.path[0:0] = [" by the same string PLUS the new
         # library path...
         base_string     = "sys.path[0:0] = ["
-        new_base_string = base_string + "\n" + rel_lib_ddir + ","
+        new_base_string = base_string + "\n  '" + rel_lib_ddir + "',"
         
         replacements = replacements + [
                         (base_string, new_base_string)
