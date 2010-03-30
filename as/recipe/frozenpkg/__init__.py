@@ -73,13 +73,14 @@ class FrozenRPM(object):
 
     def _replaceInFile(self, filename, orig_str, new_str):
         try:
-            with open(filename, "rw") as f:
-                fcontents = f.read(65535)
-                fcontents.replace(orig_str, new_str)
-                
-                # now write the new contents
-                f.seek(0)
+            with open(filename, "r") as f:
+                fcontents = f.read(65535 * 4)
+
+            fcontents.replace(orig_str, new_str)
+
+            with open(filename, "w") as f:
                 f.write(fcontents)
+
         except Exception, e:
             print "ERROR: when replacing strings in %s" % filename, e
 
