@@ -89,6 +89,43 @@ class FrozenRPM(object):
         assert (len(root) > 0)
         return os.path.abspath(glob.glob(root + "/lib/python*")[0])
 
+    def _copyPythonDist(self, root_dir, install_prefix):
+        """
+        Copy the basic python distribution files: the Python interpreter and
+        the standard library files.
+        """
+
+        replacements  = []
+
+        buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
+
+        # copy the python bins
+        bins_sdir   = self.buildout['buildout']['bin-directory']
+        bins_ddir   = os.path.normpath(buildroot + "/bin")
+
+        try: os.makedirs(bins_ddir)
+        except Exception: pass
+
+        for pybin in glob.glob(bins_sdir + "/python"):
+            self._log('Copying python binary: %s' % pybin)
+            shutil.copy(pybin, bins_ddir)
+            replacements = replacements + [
+                            (pybin, bins_ddir.replace(root_dir, ""))
+                           ]
+
+        # copy the libs
+        lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
+        lib_ddir = os.path.normpath(buildroot + "/lib")
+
+        shutil.copytree(lib_sdir, lib_ddir)
+
+        replacements = replacements + [
+                        (lib_sdir, lib_ddir.replace(root_dir, ""))
+                       ]
+
+        return replacements
+
+
     def _copyNeededEggs(self, root_dir, install_prefix):
         """
         Copy the eggs
@@ -139,38 +176,6 @@ class FrozenRPM(object):
                         self._log('Fixing egg-info')
                         shutil.move (egg_dest + "/" + egg_name + ".egg-info", eggs_ddir)
 
-
-        return replacements
-        
-    def _copyPythonDist(self, root_dir, install_prefix):
-
-        replacements  = []
-        
-        buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
-
-        # copy the python bins
-        bins_sdir   = self.buildout['buildout']['bin-directory']
-        bins_ddir   = os.path.normpath(buildroot + "/bin")
-
-        try: os.makedirs(bins_ddir)
-        except Exception: pass
-
-        for pybin in glob.glob(bins_sdir + "/python"):
-            self._log('Copying python binary: %s' % pybin)
-            shutil.copy(pybin, bins_ddir)
-            replacements = replacements + [
-                            (pybin, bins_ddir.replace(root_dir, ""))
-                           ]
-
-        # copy the libs
-        lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
-        lib_ddir = os.path.normpath(buildroot + "/lib")
-
-        shutil.copytree(lib_sdir, lib_ddir)
-
-        replacements = replacements + [
-                        (lib_sdir, lib_ddir.replace(root_dir, ""))
-                       ]
 
         return replacements
 
