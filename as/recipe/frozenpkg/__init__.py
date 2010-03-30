@@ -227,7 +227,7 @@ class FrozenRPM(object):
         if self.options.has_key('scripts'):
 
             new_bin_dir = install_prefix + "/bin"
-            new_lib_dir = self._getPythonLibDir(buildroot_projdir)
+            new_lib_dir = self._getPythonLibDir(install_prefix)
 
             str_replaces = [
                 (self.buildout['buildout']['bin-directory'],  new_bin_dir),
