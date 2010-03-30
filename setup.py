@@ -32,8 +32,8 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'License :: OSI Approved :: GNU General Public License (GPL)',
         ],
-    keywords = 'buildout recipe',
-    author   = 'Alvaro Saurin',
+    keywords     = 'buildout recipe',
+    author       = 'Alvaro Saurin',
     author_email = 'name dot surname at gmail.com',
 
     packages             = find_packages(exclude=['ez_setup']),
@@ -41,7 +41,6 @@ setup(
     include_package_data = True,
     install_requires     = [
         'setuptools',
-        'zc.recipe.egg',
         'zc.buildout'
         # -*- Extra requirements: -*-
     ],

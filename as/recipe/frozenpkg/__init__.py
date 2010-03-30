@@ -65,14 +65,25 @@ class FrozenRPM(object):
     def __init__(self, buildout, name, options):
         self.name, self.options = name, options
         self.buildout = buildout
-        self.debug = False
+        self.debug    = False
 
     def _log(self, msg):
         if self.debug:
             logging.getLogger(self.name).info(msg)
 
+    def _replaceInFile(self, filename, orig_str, new_str):
+        try:
+            with open(filename, "rw") as f:
+                fcontents = f.read(65535)
+                fcontents.replace(orig_str, new_str)
+                
+                # now write the new contents
+                f.seek(0)
+                f.write(fcontents)
+        except Exception, e:
+            print "ERROR: when replacing in %s" % filename, e
 
-    def copyNeededEggs(self, root_dir, buildroot):
+    def _copyNeededEggs(self, root_dir, buildroot):
         """
         Copy the eggs
         """
@@ -88,6 +99,7 @@ class FrozenRPM(object):
             if r.strip()]
 
         for egg_name in eggs:
+            # first, look for any eggs we need from the "eggs" directory
             for egg_path in os.listdir(eggs_sdir):
                 if fnmatch.fnmatch(egg_path, egg_name + "*.egg"):
                     self._log('Copying egg %s to %s' % (egg_path, python_libdir))
@@ -97,6 +109,7 @@ class FrozenRPM(object):
 
                     shutil.copytree(egg_src, egg_dest)
 
+            # now look for the "develop-eggs"
             for egg_path in os.listdir(eggs_devsdir):
                 if fnmatch.fnmatch(egg_path, egg_name + "*.egg-link"):
                     egg_lnk_src  = os.path.normpath(eggs_devsdir + "/" + os.path.basename(egg_path))
@@ -105,14 +118,14 @@ class FrozenRPM(object):
                         egg_src = f.readline().strip()
                         egg_dest = os.path.normpath(eggs_ddir + "/" + egg_name)
 
-                        self._log('Copying egg link %s to %s' % (egg_src, egg_dest))
+                        self._log('Copying egg %s link to %s' % (egg_name, egg_dest))
                         shutil.copytree(egg_src, egg_dest)
                         
                         self._log('Fixing egg-info')
                         shutil.move (egg_dest + "/" + egg_name + ".egg-info", eggs_ddir)
 
 
-    def copyNeededFiles(self, root_dir, buildroot):
+    def _copyPythonDist(self, root_dir, buildroot):
 
         # copy the python bins
         bins_sdir   = self.buildout['buildout']['bin-directory']
@@ -131,23 +144,16 @@ class FrozenRPM(object):
 
         shutil.copytree(lib_sdir, lib_ddir)
 
-        self.copyNeededEggs(root_dir, buildroot)
 
-
-    def createTar(self, root_dir, buildroot, tarfile):
+    def _createTar(self, root_dir, tarfile):
         """
         Create a tar file with all the needed files
         """
-        self.copyNeededFiles(root_dir, buildroot)
-
-        # create source tar
         self._log('Creating tar file %s' % (tarfile))
         os.system('cd "%(root_dir)s"; tar cfz "%(tarfile)s" *' % vars())
-
-        #distutils.archive_util.make_tarball (tarfile, root_dir, compress=None, verbose=1)
         return tarfile
 
-    def createRpm(self):
+    def _createRpm(self):
         """
         Create a RPM
         """
@@ -208,11 +214,32 @@ class FrozenRPM(object):
         if spec_file:
             spec_file.close()
 
+        # copy all the files we need
+        self._copyPythonDist(buildroot_topdir, buildroot_projdir)
+        self._copyNeededEggs(buildroot_topdir, buildroot_projdir)
+        
+        # fix the copied scripts, by replacing some paths by the new
+        # installation paths
+        if self.options.has_key('scripts'):
+            
+            str_replaces = [
+                (self.buildout['buildout']['bin-directory'], install_prefix + "/bin")
+            ]
+
+            fix_scripts = [
+                self.buildout['buildout']['bin-directory'] + "/" + r.strip()
+                for r in self.options['scripts'].split('\n') if r.strip()]
+
+            for scr in fix_scripts:
+                self._log('Fixing paths at %s' % (scr))
+                for orig_str, new_str in str_replaces:
+                    self._replaceInFile(scr, orig_str, new_str)
+
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
-        tarfile = self.createTar(buildroot_topdir, buildroot_projdir, tarfile)
+        tarfile = self._createTar(buildroot_topdir, buildroot_projdir, tarfile)
 
         # launch rpmbuild
         rpmbuild = [
@@ -247,12 +274,13 @@ class FrozenRPM(object):
                         self._log('Built %s' % (rpm_file))
                         result_rpms = result_rpms + [rpm_file]
 
-        shutil.rmtree(top_rpmbuild_dir)
+        if not self.debug:
+            shutil.rmtree(top_rpmbuild_dir)
 
         return result_rpms
 
     def install(self):
-        return self.createRpm()
+        return self._createRpm()
 
     def update(self):
         pass
