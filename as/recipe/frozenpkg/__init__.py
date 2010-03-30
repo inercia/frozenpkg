@@ -231,7 +231,7 @@ class FrozenRPM(object):
                 for r in self.options['scripts'].split('\n') if r.strip()]
 
             for scr in fix_scripts:
-                full_scr_path = self.buildout['buildout']['bin-directory'] + "/bin/" + scr
+                full_scr_path = self.buildout['buildout']['bin-directory'] + "/" + scr
                 new_scr_path  = buildroot_projdir + "/bin/" + scr
                 
                 if os.path.exists(full_scr_path):
