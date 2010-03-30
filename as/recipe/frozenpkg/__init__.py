@@ -276,7 +276,7 @@ class FrozenRPM(object):
         Create a tar file with all the needed files
         """
         self._log('Creating tar file %s' % (tarfile))
-        os.system('cd "%(root_dir)s"; tar cfz "%(tarfile)s" *' % vars())
+        os.system('cd "%(root_dir)s"; tar cfzL "%(tarfile)s" *' % vars())
         return tarfile
 
     def _createRpm(self):
