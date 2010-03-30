@@ -231,7 +231,7 @@ class FrozenRPM(object):
 
             str_replaces = [
                 (self.buildout['buildout']['bin-directory'],  new_bin_dir),
-                (self.buildout['buildout']['eggs-directory'], new_lib_dir)
+                (self.buildout['buildout']['eggs-directory'], new_lib_dir),
                 (self.buildout['buildout']['directory'],      install_prefix)
             ]
 
