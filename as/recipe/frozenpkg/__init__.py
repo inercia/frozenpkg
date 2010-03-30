@@ -140,6 +140,8 @@ class FrozenRPM(object):
         if self.options.has_key('copy-sys') and \
           (self.options['copy-sys'] == "yes" or self.options['copy-sys'] == "true"):
           
+            lib_ddir = os.path.join(buildroot, 'lib')
+          
             stdlib_dirs = [os.path.dirname(os.__file__)]
             if sys.platform == 'win32':
                 stdlib_dirs.append(os.path.join(os.path.dirname(stdlib_dirs[0]), 'DLLs'))
@@ -157,7 +159,7 @@ class FrozenRPM(object):
                 try:
                     for fn in os.listdir(stdlib_dir):
                         if fn != 'site-packages':
-                            self._copyfile(os.path.join(stdlib_dir, fn), os.path.join(lib_dir, fn))
+                            self._copyfile(os.path.join(stdlib_dir, fn), os.path.join(lib_ddir, fn))
                 except Exception, e:
                     self._log('ERROR: when copying files')
                     print e
@@ -167,8 +169,8 @@ class FrozenRPM(object):
             #              ]
 
         # copy the local libs
-        lib_sdir = os.path.normpath(self.buildout['buildout']['directory'] + "/lib")
-        lib_ddir = os.path.normpath(buildroot + "/lib")
+        lib_sdir     = os.path.join(self.buildout['buildout']['directory'], 'lib')
+        lib_ddir     = os.path.join(buildroot, 'lib')
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         shutil.copytree(lib_sdir, lib_ddir)
