@@ -269,6 +269,8 @@ class FrozenRPM(object):
             for src_el in glob.glob(src):
                 self._log('Copying %s' % src_el)
                 shutil.copy(src_el, full_path_dest)
+
+        return replacements
             
     def _fixScripts(self, replacements, buildroot_projdir):
         """
@@ -378,6 +380,7 @@ class FrozenRPM(object):
         self._log("Build root = %s" % buildroot_topdir)
         replacements = replacements + self._copyPythonDist(buildroot_topdir, install_prefix)
         replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)        
+        replacements = replacements + self._copyExtraFiles(buildroot_topdir, install_prefix)
 
         replacements = replacements + [
             (self.buildout['buildout']['directory'],      install_prefix)
