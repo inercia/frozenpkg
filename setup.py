@@ -9,9 +9,8 @@ def read(*rnames):
 
 long_description = (
     read('README.txt')
-    + '\n' +
-    'Contributors\n'
-    '************\n'
+    + '\n\n' +
+    'Contributors:\n'
     + '\n' +
     read('CONTRIBUTORS.txt')
     + '\n'
@@ -22,7 +21,7 @@ setup(
     name             = "as.recipe.frozenpkg",
     description      = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
     long_description = long_description,
-    version          = '0.1.1',
+    version          = '0.1.2',
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
