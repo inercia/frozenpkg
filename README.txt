@@ -52,6 +52,9 @@ sys-dir
 scripts
     The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
 
+extra-copies
+    Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
+
 
 Example
 =======
@@ -75,5 +78,9 @@ Example
         scripts        =
                          testapp
 
+        extra-copies   =
+                         /usr/local/lib/mylib.so      ->   lib/
+                         /usr/local/lib/myextras*.so  ->   lib/
+                         
         debug          = yes
 
