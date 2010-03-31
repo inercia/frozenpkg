@@ -76,8 +76,12 @@ class FrozenRPM(object):
         self.buildout = buildout
         self.debug    = False
 
-    def _log(self, msg):
-        if self.debug:
+    def _checkPython(self):
+        if sys.version_info < (2, 6):
+            raise "must use python 2.6 or greater"
+
+    def _log(self, msg, isdebug = True):
+        if (not isdebug) or self.debug:
             logging.getLogger(self.name).info(msg)
 
     def _replaceInFile(self, filename, orig_str, new_str):
@@ -262,9 +266,7 @@ class FrozenRPM(object):
             r.strip()
             for r in self.options.get('extra-copies', self.name).split('\n')
             if r.strip()]
-        for copy_line in extra_copies:
-            self._log('Copy line %s' % copy_line)
-            
+        for copy_line in extra_copies:            
             try:
                 src, dest = [b.strip() for b in copy_line.split("->")]
             except Exception, e:
@@ -443,6 +445,7 @@ class FrozenRPM(object):
         return result_rpms
 
     def install(self):
+        self._checkPython(self)
         return self._createRpm()
 
     def update(self):
