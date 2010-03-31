@@ -263,7 +263,13 @@ class FrozenRPM(object):
             for r in self.options.get('extra-copies', self.name).split('\n')
             if r.strip()]
         for copy_line in extra_copies:
-            src, dest = [b.strip() for b in copy_line.split("->")]
+            self._log('Copy line %s' % copy_line)
+            
+            try:
+                src, dest = [b.strip() for b in copy_line.split("->")]
+            except Exception, e:
+                print "ERROR: malformed copy specification", e
+                return replacements
             
             full_path_dest = os.path.normpath(buildroot + "/" + dest)
             for src_el in glob.glob(src):
