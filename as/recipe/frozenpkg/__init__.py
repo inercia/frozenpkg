@@ -246,7 +246,30 @@ class FrozenRPM(object):
 
         return replacements
 
-
+    def _copyExtraFiles(self, root_dir, install_prefix):
+        """
+        Copy any extra files
+        """
+        assert (root_dir != None and len(root_dir) > 0)
+        assert (install_prefix != None and len(install_prefix) > 0)
+        
+        replacements  = []
+        
+        buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
+        python_libdir = self._getPythonLibDir(buildroot)
+        
+        extra_copies = [
+            r.strip()
+            for r in self.options.get('extra-copies', self.name).split('\n')
+            if r.strip()]
+        for copy_line in extra_copies:
+            src, dest = [b.strip() for b in copy_line.split("->")]
+            
+            full_path_dest = os.path.normpath(buildroot + "/" + dest)
+            for src_el in glob.glob(src):
+                self._log('Copying %s' % src_el)
+                shutil.copy(src_el, full_path_dest)
+            
     def _fixScripts(self, replacements, buildroot_projdir):
         """
         Fix the copied scripts, by replacing some paths by the new
