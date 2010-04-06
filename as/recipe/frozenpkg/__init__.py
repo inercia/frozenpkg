@@ -155,7 +155,14 @@ class FrozenRPM(object):
                                stderr = subprocess.PIPE)
                 (stdoutdata, stderrdata) = job.communicate()
                 if job.returncode == 0:
-                    libdir = [r.strip() for r in stdoutdata.split('\n') if r.strip()][0]
+                    libdir = [r.strip() for r in stdoutdata.split('\n')][0]
+                    prefixes = [
+                        "/usr",
+                        "/usr/local",
+                        "/opt",
+                    ]
+                    for p in prefixes:
+                        libdir = libdir.replace(p, "")
                     self._log('Library found at %s' % (libdir))
                     return libdir
                     
@@ -403,8 +410,8 @@ class FrozenRPM(object):
             exit(1)
 
         if self.options.has_key('skip-sys'):
-            self.python_skip_sys = (self.options['skip-sys'] == "yes" or \
-                                    self.options['skip-sys'] == "true")
+            self.python_skip_sys = (self.options['skip-sys'].lower() == "yes" or \
+                                    self.options['skip-sys'].lower() == "true")
         else:
             self.python_skip_sys = False
             
