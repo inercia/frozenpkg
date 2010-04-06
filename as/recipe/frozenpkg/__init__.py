@@ -254,9 +254,19 @@ class FrozenRPM(object):
         
         buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
 
+        # remove some prefixes, so that we remove "/usr" in "BUILDROOT/opt/pkg/usr/lib/python"
+        lib_prefix = self.python_libdir
+        prefixes = [
+            "/usr",
+            "/usr/local",
+            "/opt",
+        ]
+        for p in prefixes:
+            lib_prefix = lib_prefix.replace(p, "")
+
         eggs_sdir    = self.buildout['buildout']['eggs-directory']
         eggs_devsdir = self.buildout['buildout']['develop-eggs-directory']
-        eggs_ddir    = os.path.normpath(buildroot + "/" + self.python_libdir + "/site-packages/")
+        eggs_ddir    = os.path.normpath(buildroot + "/" + lib_prefix + "/site-packages/")
 
         eggs = [
             r.strip()
