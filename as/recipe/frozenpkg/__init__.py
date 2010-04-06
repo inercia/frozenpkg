@@ -407,6 +407,10 @@ class FrozenRPM(object):
         else:
             self.python_libdir = self._getPythonLibDir(buildroot_projdir, self.python_bin)
 
+        if not self.python_libdir:
+            print "ERROR: python library not found"
+            exit(1)
+
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
         rpmspec = rpmspec.replace("@TOP_DIR@",         top_rpmbuild_dir)
