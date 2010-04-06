@@ -149,6 +149,7 @@ class FrozenRPM(object):
                     "'import os ; print os.path.dirname(os.__file__)'"
                 ]
 
+                self._log('Running %s' % (pythonquery.join()))
                 job = subprocess.Popen(pythonquery,
                                stdout = subprocess.PIPE,
                                stderr = subprocess.STDOUT)
