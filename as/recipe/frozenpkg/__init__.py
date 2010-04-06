@@ -445,7 +445,7 @@ class FrozenRPM(object):
         return result_rpms
 
     def install(self):
-        self._checkPython(self)
+        self._checkPython()
         return self._createRpm()
 
     def update(self):
