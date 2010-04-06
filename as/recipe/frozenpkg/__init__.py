@@ -187,30 +187,31 @@ class FrozenRPM(object):
 
         # copy the libs
         if self.python_skip_sys:
-            lib_sdirs   = [os.path.abspath(self.buildout['buildout']['directory'] + \
-                                    '/lib/python' + self.python_vers)]
+            lib_prefix  = '/lib/python' + self.python_vers
+            lib_sdir    = os.path.abspath(self.buildout['buildout']['directory'] + lib_prefix)
         else:
-            lib_sdirs   = [self.python_libdir]
+            lib_prefix  = self.python_libdir
+            lib_sdir    = lib_prefix
             
-        lib_ddir    = os.path.abspath(buildroot + '/lib/python' + self.options['python-version'])
+        lib_ddir    = os.path.abspath(buildroot + lib_prefix)
 
-        for d in lib_sdirs:
-            if not os.path.isdir(d):
-                continue
+        if not os.path.isdir(lib_sdir):
+            print "ERROR"
+            exit(1)
 
-            self._log('Copying %s' % d)
-            try:
-                for fn in os.listdir(d):
-                    if not fn in SKIP_SYS_DIRS:
-                        self._copyfile(os.path.abspath(d + "/" + fn),
-                                       os.path.abspath(lib_ddir + "/" + fn))
-            except Exception, e:
-                self._log('ERROR: when copying %s' % d)
-                print e
+        self._log('Copying %s' % lib_sdir)
+        try:
+            for fn in os.listdir(lib_sdir):
+                if not fn in SKIP_SYS_DIRS:
+                    self._copyfile(os.path.abspath(lib_sdir + "/" + fn),
+                                   os.path.abspath(lib_ddir + "/" + fn))
+        except Exception, e:
+            self._log('ERROR: when copying %s' % lib_sdir)
+            print e
 
         # copy the site libs
-        lib_sdir     = os.path.abspath(self.buildout['buildout']['directory'] + '/lib/python' + self.options['python-version'] + '/site-packages')
-        lib_ddir     = os.path.abspath(buildroot + '/lib/python' + self.options['python-version'] + '/site-packages')
+        lib_sdir     = os.path.abspath(lib_sdir + '/site-packages')
+        lib_ddir     = os.path.abspath(lib_ddir + '/site-packages')
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         shutil.copytree(lib_sdir, lib_ddir)
