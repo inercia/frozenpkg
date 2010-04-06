@@ -129,8 +129,7 @@ class FrozenRPM(object):
                 "/usr/bin/python"
         ]
         
-        self.python_bin = None
-        for i in pos_p:
+        for p in pos_p:
             if os.path.exists(p):
                 return p
 
