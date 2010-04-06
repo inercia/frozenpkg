@@ -146,14 +146,14 @@ class FrozenRPM(object):
                 pythonquery = [
                     pythonexe,
                     "-c",
-                    "'import os ; print os.path.dirname(os.__file__)'"
+                    "import os ; print os.path.dirname(os.__file__)"
                 ]
 
                 self._log('Running %s' % (" ".join(pythonquery)))
                 job = subprocess.Popen(pythonquery,
-                               stdout = subprocess.PIPE)
-                stdout, _ = job.communicate()
-
+                               stdout = subprocess.PIPE,
+                               stderr = subprocess.PIPE)
+                (stdoutdata, stderrdata) = job.communicate()
                 if job.returncode == 0:
                     libdir = stdout.readlines()[0]
                     self._log('Library found at %s' % (libdir))
