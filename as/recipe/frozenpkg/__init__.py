@@ -198,8 +198,8 @@ class FrozenRPM(object):
             "/usr",
             "/usr/local",
             "/opt",
-         ]
-         for p in prefixes:
+        ]
+        for p in prefixes:
             lib_prefix = lib_prefix.replace(p, "")
 
         lib_ddir    = os.path.abspath(buildroot + lib_prefix)
