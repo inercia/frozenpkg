@@ -113,11 +113,56 @@ class FrozenRPM(object):
         else:
             shutil.copy2(src, dest)
 
+    def _getPythonBin(self, root, vers):
+        """
+        Get the python exe
+        """
+        pos_p = [
+                self.buildout['buildout']['bin-directory'] + "/python" + vers,
+                self.buildout['buildout']['bin-directory'] + "/python" + vers.replace(".", ""),
+                self.buildout['buildout']['bin-directory'] + "/python",
+                "/usr/local/bin/python" + vers,
+                "/usr/local/bin/python" + vers.replace(".", ""),
+                "/usr/local/bin/python",
+                "/usr/bin/python" + vers,
+                "/usr/bin/python" + vers.replace(".", ""),
+                "/usr/bin/python"
+        ]
+        
+        self.python_bin = None
+        for i in pos_p:
+            if os.path.exists(p):
+                return p
 
-    def _getPythonLibDir(self, root):
+        return None
+
+    def _getPythonLibDir(self, root, pythonexe = None):
         assert (root != None)
         assert (len(root) > 0)
-        return os.path.abspath(glob.glob(root + "/lib/python*")[0])
+
+        if not pythonexe:
+            return os.path.abspath(glob.glob(root + "/lib/python*")[0])
+        else:
+            if os.path.exists(pythonexe):
+            
+                pythonquery = [
+                    "pythonexe",
+                    "-c",
+                    "" % (top_rpmbuild_dir,),
+                    "-ta", tarfile,
+                ]
+
+                job = subprocess.Popen(pythonquery,
+                               stdout = subprocess.PIPE,
+                               stderr = subprocess.STDOUT)
+                stdout, _ = job.communicate()
+
+                if job.returncode == 0:
+                    return stdout.strip()
+
+            print "ERROR: could not determine the python library directory"    
+            
+
 
     def _copyPythonDist(self, root_dir, install_prefix):
         """
@@ -135,13 +180,12 @@ class FrozenRPM(object):
 
         try: os.makedirs(bins_ddir)
         except Exception: pass
-
-        for pybin in glob.glob(bins_sdir + "/python"):
-            self._log('Copying python binary: %s' % pybin)
-            shutil.copy(pybin, bins_ddir)
-            replacements = replacements + [
-                            (pybin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(pybin))
-                           ]
+        
+        self._log('Copying python binary: %s' % self.python_bin)
+        shutil.copy(pybin, bins_ddir)
+        replacements = replacements + [
+                        (pybin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(pybin))
+                       ]
 
         # copy the libs
         if self.options.has_key('sys-dir'):
@@ -204,11 +248,10 @@ class FrozenRPM(object):
         replacements  = []
         
         buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
-        python_libdir = self._getPythonLibDir(buildroot)
 
         eggs_sdir    = self.buildout['buildout']['eggs-directory']
         eggs_devsdir = self.buildout['buildout']['develop-eggs-directory']
-        eggs_ddir    = os.path.normpath(python_libdir + "/site-packages/")
+        eggs_ddir    = os.path.normpath(self.python_libdir + "/site-packages/")
 
         eggs = [
             r.strip()
@@ -238,14 +281,15 @@ class FrozenRPM(object):
                         egg_src = f.readline().strip()
                         egg_dest = os.path.normpath(eggs_ddir + "/" + egg_name)
 
-                        self._log('Copying egg %s link to %s' % (egg_name, egg_dest))
+                        self._log('Copying link egg %s' % (egg_name))
                         shutil.copytree(egg_src, egg_dest)
 
                         egg_dest_rel = egg_dest.replace(root_dir, "")
                         replacements = replacements + [(egg_src, egg_dest_rel)]
                         
                         self._log('Fixing egg-info')
-                        shutil.move (egg_dest + "/" + egg_name + ".egg-info", eggs_ddir)
+                        src_egg_info = egg_dest + "/" + egg_name + ".egg-info"
+                        shutil.move (src_egg_info, eggs_ddir)
 
 
         return replacements
@@ -260,7 +304,6 @@ class FrozenRPM(object):
         replacements  = []
         
         buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
-        python_libdir = self._getPythonLibDir(buildroot)
         
         extra_copies = [
             r.strip()
@@ -345,11 +388,28 @@ class FrozenRPM(object):
             additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
 
         if self.options.has_key('debug'):
-            self.debug = True
-
+            self.debug = True            
+        
         buildroot_topdir  = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
         install_prefix    = self.options.get('install-prefix', os.path.join('opt', pkg_name))
         buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + install_prefix)
+
+        # get the python binary and library
+        self.python_vers   = self.options.get('python-version', '2.6')
+
+        if self.options.has_key('sys-python'):
+            self.python_bin = self.options['sys-python']
+        else:
+            self.python_bin = self._getPythonBin(buildroot_projdir, self.python_vers)
+
+        if not self.python_bin:
+            print "ERROR: python binary not found"
+            exit(1)
+            
+        if self.options.has_key('sys-lib'):
+            self.python_libdir = self.options['sys-lib']
+        else:
+            self.python_libdir = self._getPythonLibDir(buildroot_projdir, self.python_bin)
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
