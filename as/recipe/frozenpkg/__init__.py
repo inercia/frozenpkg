@@ -404,6 +404,8 @@ class FrozenRPM(object):
         if self.options.has_key('skip-sys'):
             self.python_skip_sys = (self.options['skip-sys'] == "yes" or \
                                     self.options['skip-sys'] == "true")
+        else:
+            self.python_skip_sys = False
             
         if self.options.has_key('sys-lib'):
             self.python_libdir = self.options['sys-lib']
