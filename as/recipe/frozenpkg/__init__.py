@@ -178,9 +178,9 @@ class FrozenRPM(object):
         except Exception: pass
         
         self._log('Copying python binary: %s' % self.python_bin)
-        shutil.copy(pybin, bins_ddir)
+        shutil.copy(self.python_bin, bins_ddir)
         replacements = replacements + [
-                        (pybin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(pybin))
+                        (self.python_bin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(self.python_bin))
                        ]
 
         # copy the libs
