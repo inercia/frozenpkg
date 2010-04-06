@@ -203,7 +203,7 @@ class FrozenRPM(object):
         lib_ddir    = os.path.abspath(buildroot + lib_prefix)
 
         if not os.path.isdir(lib_sdir):
-            print "ERROR"
+            print "ERROR: %s is not a directory" % lib_sdir
             exit(1)
 
         self._log('Copying %s' % lib_sdir)
