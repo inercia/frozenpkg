@@ -155,7 +155,7 @@ class FrozenRPM(object):
                 stdout, _ = job.communicate()
 
                 if job.returncode == 0:
-                    libdir = stdout.strip()
+                    libdir = stdout.readlines()[0]
                     self._log('Library found at %s' % (libdir))
                     return libdir
                     
