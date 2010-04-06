@@ -151,8 +151,7 @@ class FrozenRPM(object):
 
                 self._log('Running %s' % (" ".join(pythonquery)))
                 job = subprocess.Popen(pythonquery,
-                               stdout = subprocess.PIPE,
-                               stderr = subprocess.STDOUT)
+                               stdout = subprocess.STDOUT)
                 stdout, _ = job.communicate()
 
                 if job.returncode == 0:
