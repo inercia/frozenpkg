@@ -186,7 +186,7 @@ class FrozenRPM(object):
                        ]
 
         # copy the libs
-        if self.options['skip-sys'] != "yes" or self.options['skip-sys'] != "true":
+        if self.python_skip_sys:
             lib_sdirs   = [os.path.abspath(self.buildout['buildout']['directory'] + \
                                     '/lib/python' + self.python_vers)]
         else:
@@ -400,6 +400,10 @@ class FrozenRPM(object):
         if not self.python_bin:
             print "ERROR: python binary not found"
             exit(1)
+
+        if self.options.has_key('skip-sys'):
+            self.python_skip_sys = (self.options['skip-sys'] == "yes" or \
+                                    self.options['skip-sys'] == "true")
             
         if self.options.has_key('sys-lib'):
             self.python_libdir = self.options['sys-lib']
