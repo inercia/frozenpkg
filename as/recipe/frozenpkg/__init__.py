@@ -142,13 +142,11 @@ class FrozenRPM(object):
         if not pythonexe:
             return os.path.abspath(glob.glob(root + "/lib/python*")[0])
         else:
-            if os.path.exists(pythonexe):
-            
+            if os.path.exists(pythonexe):            
                 pythonquery = [
-                    "pythonexe",
+                    pythonexe,
                     "-c",
-                    "" % (top_rpmbuild_dir,),
-                    "-ta", tarfile,
+                    "'import os ; print os.path.dirname(os.__file__)'"
                 ]
 
                 job = subprocess.Popen(pythonquery,
@@ -158,9 +156,8 @@ class FrozenRPM(object):
 
                 if job.returncode == 0:
                     return stdout.strip()
-
-            print "ERROR: could not determine the python library directory"    
-            
+                    
+            return None            
 
 
     def _copyPythonDist(self, root_dir, install_prefix):
