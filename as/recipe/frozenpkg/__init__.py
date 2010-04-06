@@ -156,13 +156,6 @@ class FrozenRPM(object):
                 (stdoutdata, stderrdata) = job.communicate()
                 if job.returncode == 0:
                     libdir = [r.strip() for r in stdoutdata.split('\n')][0]
-                    prefixes = [
-                        "/usr",
-                        "/usr/local",
-                        "/opt",
-                    ]
-                    for p in prefixes:
-                        libdir = libdir.replace(p, "")
                     self._log('Library found at %s' % (libdir))
                     return libdir
                     
@@ -199,7 +192,16 @@ class FrozenRPM(object):
         else:
             lib_prefix  = self.python_libdir
             lib_sdir    = lib_prefix
-            
+
+        # remove some prefixes, so that we remove "/usr" in "BUILDROOT/opt/pkg/usr/lib/python"
+        prefixes = [
+            "/usr",
+            "/usr/local",
+            "/opt",
+         ]
+         for p in prefixes:
+            lib_prefix = lib_prefix.replace(p, "")
+
         lib_ddir    = os.path.abspath(buildroot + lib_prefix)
 
         if not os.path.isdir(lib_sdir):
