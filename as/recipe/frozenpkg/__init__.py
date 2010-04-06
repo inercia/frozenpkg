@@ -247,7 +247,7 @@ class FrozenRPM(object):
 
         eggs_sdir    = self.buildout['buildout']['eggs-directory']
         eggs_devsdir = self.buildout['buildout']['develop-eggs-directory']
-        eggs_ddir    = os.path.normpath(self.python_libdir + "/site-packages/")
+        eggs_ddir    = os.path.normpath(buildroot + "/" + self.python_libdir + "/site-packages/")
 
         eggs = [
             r.strip()
