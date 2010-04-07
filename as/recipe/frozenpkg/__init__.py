@@ -419,6 +419,9 @@ class FrozenRPM(object):
                 print "ERROR: malformed copy specification", e
                 return replacements
             
+            if not os.path.isabs(src):
+                src = self.options['buildout']['directory'] + '/' + src
+
             full_path_dest = os.path.normpath(buildroot + "/" + dest)
             for src_el in glob.glob(src):
                 self._log('Copying %s' % src_el)
