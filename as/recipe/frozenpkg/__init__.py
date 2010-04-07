@@ -39,7 +39,7 @@ RPM_SPEC_TEMPLATE = """
 # define _cpu           SOMECPU
 
 %define _unpackaged_files_terminate_build   0
-%define __prelink_undo_cmd                  /bin/true
+%define __prelink_undo_cmd                  
 
 Name:                 @PKG_NAME@
 Version:              @PKG_VERSION@
