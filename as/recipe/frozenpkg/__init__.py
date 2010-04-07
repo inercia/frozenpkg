@@ -77,13 +77,16 @@ class FrozenRPM(object):
         self.buildout = buildout
         self.debug    = False
 
+
     def _checkPython(self):
         if sys.version_info < (2, 6):
             raise "must use python 2.6 or greater"
 
+
     def _log(self, msg, isdebug = True):
         if (not isdebug) or self.debug:
             logging.getLogger(self.name).info(msg)
+
 
     def _replaceInFile(self, filename, orig_str, new_str):
         #self._log('Replacing %s by %s' % (orig_str, new_str))
@@ -100,7 +103,11 @@ class FrozenRPM(object):
         except Exception, e:
             print "ERROR: when replacing strings in %s" % filename, e
 
-    def _copyfile(self, src, dest):
+
+    def _copyFiles(self, src, dest):
+        """
+        Copy a files tree
+        """
         if not os.path.exists(src):
             self._log('Cannot find file %s (bad symlink)' % src)
             return
@@ -110,13 +117,14 @@ class FrozenRPM(object):
         if not os.path.exists(os.path.dirname(dest)):
             self._log('Creating parent directories for %s' % os.path.dirname(dest))
             os.makedirs(os.path.dirname(dest))
-        self._log('Copying to %s' % dest)
+        # self._log('Copying to %s' % dest)
         if os.path.isdir(src):
             shutil.copytree(src, dest, symlinks = False)
         else:
             shutil.copy2(src, dest)
 
-    def _getPythonBin(self, root, vers):
+
+    def _getPythonBin(self, root, vers = ""):
         """
         Get the python exe
         """
@@ -138,6 +146,7 @@ class FrozenRPM(object):
 
         return None
 
+
     def _getPythonLibDir(self, root, pythonexe = None):
         assert (root != None)
         assert (len(root) > 0)
@@ -152,7 +161,7 @@ class FrozenRPM(object):
                     "import os ; print os.path.dirname(os.__file__)"
                 ]
 
-                self._log('Running %s' % (" ".join(pythonquery)))
+                # self._log('Running %s' % (" ".join(pythonquery)))
                 job = subprocess.Popen(pythonquery,
                                stdout = subprocess.PIPE,
                                stderr = subprocess.PIPE)
@@ -163,6 +172,66 @@ class FrozenRPM(object):
                     return libdir
                     
             return None            
+
+
+    def _getPythonVers(self, pythonexe):
+        if os.path.exists(pythonexe):            
+            pythonquery = [
+                pythonexe,
+                "-c",
+                "import sys; print str(sys.version_info[0]) + '.' + str(sys.version_info[1])"
+            ]
+
+            # self._log('Running %s' % (" ".join(pythonquery)))
+            job = subprocess.Popen(pythonquery,
+                            stdout = subprocess.PIPE,
+                            stderr = subprocess.PIPE)
+            (stdoutdata, stderrdata) = job.communicate()
+            if job.returncode == 0:
+                vers = [r.strip() for r in stdoutdata.split('\n')][0]
+                self._log('Python version found %s' % (vers))
+                return vers
+                
+        return None            
+
+
+    def _getPythonInfo(self, buildroot_projdir):
+        """
+        Get the python binary, the version and the library.
+        """
+        self.python_vers = None
+        if self.options.has_key('python-version'):
+            self.python_vers   = self.options['python-version']
+
+        if self.options.has_key('sys-python'):
+            self.python_bin = self.options['sys-python']
+        else:
+            self.python_bin  = self._getPythonBin(buildroot_projdir, self.python_vers)
+            
+        if not self.python_vers:
+            self.python_vers = self._getPythonVers(self.python_bin)
+
+        if not self.python_bin or not self.python_vers:
+            print "ERROR: python binary or version not found"
+            sys.exit(1)
+
+        self.python_bin_rel = self.install_prefix + "/bin/" + os.path.basename(self.python_bin)
+
+        if self.options.has_key('skip-sys'):
+            self.python_skip_sys = (self.options['skip-sys'].lower() == "yes" or \
+                                    self.options['skip-sys'].lower() == "true")
+        else:
+            self.python_skip_sys = False
+            
+        if self.options.has_key('sys-lib'):
+            self.python_libdir = self.options['sys-lib']
+        else:
+            self.python_libdir = self._getPythonLibDir(buildroot_projdir, self.python_bin)
+
+        if not self.python_libdir:
+            print "ERROR: python library not found"
+            sys.exit(1)
+
 
 
     def _copyPythonDist(self, root_dir, install_prefix):
@@ -179,9 +248,9 @@ class FrozenRPM(object):
         bins_sdir   = self.buildout['buildout']['bin-directory']
         bins_ddir   = os.path.abspath(buildroot + "/bin")
 
-        venv_python_bin     = self.buildout['buildout']['bin-directory'] + "/python"
+        venv_python_bin  = self.buildout['buildout']['bin-directory'] + "/python"
                 
-        self._log('Copying python binary: %s' % self.python_bin)        
+        self._log('Copying python binary %s to %s' % (self.python_bin, self.install_prefix + "/bin"))
         os.makedirs(bins_ddir)
         shutil.copy(self.python_bin, bins_ddir)
 
@@ -220,14 +289,14 @@ class FrozenRPM(object):
 
         if not os.path.isdir(lib_sdir):
             print "ERROR: %s is not a directory" % lib_sdir
-            exit(1)
+            sys.exit(1)
 
-        self._log('Copying %s' % lib_sdir)
+        self._log('Copying system library %s to %s' % (lib_sdir, self.install_prefix + lib_prefix))
         try:
             for fn in os.listdir(lib_sdir):
                 if not fn in SKIP_SYS_DIRS:
-                    self._copyfile(os.path.abspath(lib_sdir + "/" + fn),
-                                   os.path.abspath(lib_ddir + "/" + fn))
+                    self._copyFiles(os.path.abspath(lib_sdir + "/" + fn),
+                                    os.path.abspath(lib_ddir + "/" + fn))
         except Exception, e:
             self._log('ERROR: when copying %s' % lib_sdir)
             print e
@@ -296,7 +365,7 @@ class FrozenRPM(object):
             # first, look for any eggs we need from the "eggs" directory
             for egg_path in os.listdir(eggs_sdir):
                 if fnmatch.fnmatch(egg_path, egg_name + "*.egg"):
-                    self._log('Copying egg %s to %s' % (egg_path, eggs_ddir))
+                    self._log('Copying egg %s to %s' % (egg_path, self.install_prefix + lib_prefix + "/site-packages/"))
 
                     egg_src  = os.path.abspath(eggs_sdir + "/" + os.path.basename(egg_path))
                     egg_dest = os.path.abspath(eggs_ddir + "/" + os.path.basename(egg_path))
@@ -446,34 +515,8 @@ class FrozenRPM(object):
         buildroot_topdir     = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
         buildroot_projdir    = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
 
-        # get the python binary and library
-        self.python_vers   = self.options.get('python-version', '2.6')
-
-        if self.options.has_key('sys-python'):
-            self.python_bin = self.options['sys-python']
-        else:
-            self.python_bin = self._getPythonBin(buildroot_projdir, self.python_vers)
-
-        if not self.python_bin:
-            print "ERROR: python binary not found"
-            exit(1)
-
-        self.python_bin_rel = self.install_prefix + "/bin/" + os.path.basename(self.python_bin)
-
-        if self.options.has_key('skip-sys'):
-            self.python_skip_sys = (self.options['skip-sys'].lower() == "yes" or \
-                                    self.options['skip-sys'].lower() == "true")
-        else:
-            self.python_skip_sys = False
-            
-        if self.options.has_key('sys-lib'):
-            self.python_libdir = self.options['sys-lib']
-        else:
-            self.python_libdir = self._getPythonLibDir(buildroot_projdir, self.python_bin)
-
-        if not self.python_libdir:
-            print "ERROR: python library not found"
-            exit(1)
+        # get the python binary, the version and the library
+        self._getPythonInfo(buildroot_projdir)        
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
