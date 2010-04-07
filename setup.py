@@ -56,7 +56,10 @@ eggs
 python-version
     The python version that will be copied to the package.
 
-sys-dir
+sys-python
+    The python binary that we should copy to the package.
+    
+sys-lib
    The system libraries directory. Default: the lib directory in the virtualenv (if present)
 
 scripts
@@ -83,12 +86,13 @@ Example
 
         eggs           = ${main:eggs}
 
-        python-version = 2.6
-        sys-dir        = /usr/lib/python2.6
+        sys-python     = /usr/lib/python2.6
+        
         scripts        =
                          testapp
 
         extra-copies   =
+                         /usr/lib/libpython*          ->   lib/
                          /usr/local/lib/mylib.so      ->   lib/
                          /usr/local/lib/myextras*.so  ->   lib/
                          
