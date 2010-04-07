@@ -39,6 +39,7 @@ RPM_SPEC_TEMPLATE = """
 # define _cpu           SOMECPU
 
 %define _unpackaged_files_terminate_build   0
+%define __prelink_undo_cmd                  /bin/true
 
 Name:                 @PKG_NAME@
 Version:              @PKG_VERSION@
@@ -198,6 +199,7 @@ class FrozenRPM(object):
             "/usr",
             "/usr/local",
             "/opt",
+            self.buildout['buildout']['directory']
         ]
         for p in prefixes:
             lib_prefix = lib_prefix.replace(p, "")
@@ -260,6 +262,7 @@ class FrozenRPM(object):
             "/usr",
             "/usr/local",
             "/opt",
+            self.buildout['buildout']['directory']
         ]
         for p in prefixes:
             lib_prefix = lib_prefix.replace(p, "")
