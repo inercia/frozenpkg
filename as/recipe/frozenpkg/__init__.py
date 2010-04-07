@@ -420,7 +420,7 @@ class FrozenRPM(object):
                 return replacements
             
             if not os.path.isabs(src):
-                src = self.options['buildout']['directory'] + '/' + src
+                src = self.buildout['buildout']['directory'] + '/' + src
 
             full_path_dest = os.path.normpath(buildroot + "/" + dest)
             for src_el in glob.glob(src):
