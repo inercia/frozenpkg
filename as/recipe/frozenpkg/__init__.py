@@ -86,6 +86,8 @@ class FrozenRPM(object):
             logging.getLogger(self.name).info(msg)
 
     def _replaceInFile(self, filename, orig_str, new_str):
+        #self._log('Replacing %s by %s' % (orig_str, new_str))
+
         try:
             with open(filename, "r") as f:
                 content = f.read(65535 * 4)
@@ -177,19 +179,28 @@ class FrozenRPM(object):
         bins_sdir   = self.buildout['buildout']['bin-directory']
         bins_ddir   = os.path.abspath(buildroot + "/bin")
 
-        try: os.makedirs(bins_ddir)
-        except Exception: pass
-        
-        self._log('Copying python binary: %s' % self.python_bin)
+        venv_python_bin     = self.buildout['buildout']['bin-directory'] + "/python"
+                
+        self._log('Copying python binary: %s' % self.python_bin)        
+        os.makedirs(bins_ddir)
         shutil.copy(self.python_bin, bins_ddir)
+
         replacements = replacements + [
-                        (self.python_bin, bins_ddir.replace(root_dir, "") + "/" + os.path.basename(self.python_bin))
-                       ]
+                                      (self.python_bin, self.python_bin_rel),
+                                      (venv_python_bin, self.python_bin_rel)
+                                      ]
+
+        # calculate the local python "lib"
+        venv_lib_prefix = '/lib/python' + self.python_vers
+        venv_lib_sdir   = os.path.abspath(self.buildout['buildout']['directory'] + venv_lib_prefix)
+        if not os.path.exists(venv_lib_sdir):
+            venv_lib_prefix = '/lib64/python' + self.python_vers
+            venv_lib_sdir   = os.path.abspath(self.buildout['buildout']['directory'] + venv_lib_prefix)
 
         # copy the libs
         if self.python_skip_sys:
-            lib_prefix  = '/lib/python' + self.python_vers
-            lib_sdir    = os.path.abspath(self.buildout['buildout']['directory'] + lib_prefix)
+            lib_prefix  = venv_lib_prefix
+            lib_sdir    = venv_lib_sdir
         else:
             lib_prefix  = self.python_libdir
             lib_sdir    = lib_prefix
@@ -204,7 +215,8 @@ class FrozenRPM(object):
         for p in prefixes:
             lib_prefix = lib_prefix.replace(p, "")
 
-        lib_ddir    = os.path.abspath(buildroot + lib_prefix)
+        lib_ddir     = os.path.abspath(buildroot + lib_prefix)
+        rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         if not os.path.isdir(lib_sdir):
             print "ERROR: %s is not a directory" % lib_sdir
@@ -221,22 +233,23 @@ class FrozenRPM(object):
             print e
 
         # copy the site libs
-        lib_sdir     = os.path.abspath(lib_sdir + '/site-packages')
-        lib_ddir     = os.path.abspath(lib_ddir + '/site-packages')
-        rel_lib_ddir = lib_ddir.replace(root_dir, "")
+        site_lib_sdir = os.path.abspath(venv_lib_sdir + '/site-packages')
+        if os.path.exists(site_lib_sdir):
+            site_lib_ddir     = os.path.abspath(lib_ddir + '/site-packages')
+            rel_site_lib_ddir = site_lib_ddir.replace(root_dir, "")
 
-        shutil.copytree(lib_sdir, lib_ddir)
+            shutil.copytree(site_lib_sdir, site_lib_ddir)
 
-        replacements = replacements + [
-                        (lib_sdir, rel_lib_ddir)
+            replacements = replacements + [
+                        (site_lib_sdir, rel_site_lib_ddir)
                        ]
 
-        # here comes a really dirty hack !!!
+        # here comes a really DIRTY HACK !!!
         # in order to put the new library in front of the PYTHONPATH, we 
         # replace "sys.path[0:0] = [" by the same string PLUS the new
         # library path...
         base_string     = "sys.path[0:0] = ["
-        new_base_string = base_string + "\n  '" + rel_lib_ddir + "',"
+        new_base_string = base_string + "\n  '" + rel_lib_ddir + "',\n  '" + rel_site_lib_ddir + "',"
         
         replacements = replacements + [
                         (base_string, new_base_string)
@@ -353,19 +366,36 @@ class FrozenRPM(object):
                 for r in self.options['scripts'].split('\n') if r.strip()]
 
             for scr in fix_scripts:
-                full_scr_path = self.buildout['buildout']['bin-directory'] + "/" + scr
-                new_scr_path  = buildroot_projdir + "/bin/" + scr
+                full_scr_path     = self.buildout['buildout']['bin-directory'] + "/" + scr
+                new_scr_path      = buildroot_projdir + "/bin/" + scr + ".real"
+                new_wrapper_path  = buildroot_projdir + "/bin/" + scr
+                new_rel_path      = self.install_prefix + "/bin/" + scr + ".real"
                 
                 if os.path.exists(full_scr_path):
-                    self._log('Copying %s [%s]' % (scr, full_scr_path))
+                    self._log('Copying %s' % (scr))
                     shutil.copyfile (full_scr_path, new_scr_path)
                     
                     self._log('... and fixing paths at %s' % (scr))
                     for orig_str, new_str in replacements:
-                        #self._log('... replacing %s by %s' % (orig_str, new_str))                        
                         self._replaceInFile(new_scr_path, orig_str, new_str)
+
+                    self._log('... and creating wrapper %s' % (os.path.basename(new_wrapper_path)))
+                    with open(new_wrapper_path, "w") as w:
+                        w.write("#!/bin/sh\n")
+                        w.write("\n\n")
+                        
+                        # Set the right LD_LIBRARY_PATH
+                        w.write("LD_LIBRARY_PATH=%s:%s:$LD_LIBRARY_PATH\n" % \
+                            (self.install_prefix + "/lib64",
+                             self.install_prefix + "/lib"))
+                        w.write("export LD_LIBRARY_PATH\n\n")
+
+                        w.write("shift\n")
+                        w.write("%s $@\n\n" %  new_rel_path)
+                        os.chmod(new_wrapper_path, 0755)
                     
                     os.chmod(new_scr_path, 0755)
+                    
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
         
@@ -407,10 +437,11 @@ class FrozenRPM(object):
 
         if self.options.has_key('debug'):
             self.debug = True            
+
+        self.install_prefix  = self.options.get('install-prefix', os.path.join('opt', pkg_name))
         
-        buildroot_topdir  = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
-        install_prefix    = self.options.get('install-prefix', os.path.join('opt', pkg_name))
-        buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + install_prefix)
+        buildroot_topdir     = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
+        buildroot_projdir    = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
 
         # get the python binary and library
         self.python_vers   = self.options.get('python-version', '2.6')
@@ -423,6 +454,8 @@ class FrozenRPM(object):
         if not self.python_bin:
             print "ERROR: python binary not found"
             exit(1)
+
+        self.python_bin_rel = self.install_prefix + "/bin/" + os.path.basename(self.python_bin)
 
         if self.options.has_key('skip-sys'):
             self.python_skip_sys = (self.options['skip-sys'].lower() == "yes" or \
@@ -450,7 +483,7 @@ class FrozenRPM(object):
         rpmspec = rpmspec.replace("@PKG_LICENSE@",     pkg_license)
         rpmspec = rpmspec.replace("@PKG_GROUP@",       pkg_group)
         rpmspec = rpmspec.replace("@PKG_AUTODEPS@",    pkg_autodeps)
-        rpmspec = rpmspec.replace("@INSTALL_PREFIX@",  install_prefix)
+        rpmspec = rpmspec.replace("@INSTALL_PREFIX@",  self.install_prefix)
         rpmspec = rpmspec.replace("@BUILD_ROOT@",      buildroot_topdir)        
         rpmspec = rpmspec.replace("@ADDITIONAL_OPS@",  "\n".join(additional_ops))
 
@@ -475,12 +508,12 @@ class FrozenRPM(object):
 
         # copy all the files we need
         self._log("Build root = %s" % buildroot_topdir)
-        replacements = replacements + self._copyPythonDist(buildroot_topdir, install_prefix)
-        replacements = replacements + self._copyNeededEggs(buildroot_topdir, install_prefix)        
-        replacements = replacements + self._copyExtraFiles(buildroot_topdir, install_prefix)
+        replacements = replacements + self._copyPythonDist(buildroot_topdir, self.install_prefix)
+        replacements = replacements + self._copyNeededEggs(buildroot_topdir, self.install_prefix)        
+        replacements = replacements + self._copyExtraFiles(buildroot_topdir, self.install_prefix)
 
         replacements = replacements + [
-            (self.buildout['buildout']['directory'],      install_prefix)
+            (self.buildout['buildout']['directory'],    self.install_prefix)
         ]
 
         # fix the copied scripts, by replacing some paths by the new
