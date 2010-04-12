@@ -57,13 +57,13 @@ python-version
     The python version that will be copied to the package.
 
 sys-python
-    The python binary that we should copy to the package.
+    The python binary that we should copy to the package. Default: the python in the virtualenv.
     
 sys-lib
-   The system libraries directory. Default: the lib directory in the virtualenv (if present)
+   The system libraries directory. Default: the library of the sys-python when provided, or the lib directory in the virtualenv otherwise.
 
 scripts
-    The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
+    The scripts from the bin directory that will be copied to the package. These scripts will have their paths relocated to the installation prefix.
 
 extra-copies
     Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
@@ -105,7 +105,7 @@ setup(
     name             = "as.recipe.frozenpkg",
     description      = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
     long_description = long_description,
-    version          = '0.1.11',
+    version          = '0.2',
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [

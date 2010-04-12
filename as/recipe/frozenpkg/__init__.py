@@ -231,6 +231,20 @@ class FrozenRPM(object):
         if not self.python_libdir:
             print "ERROR: python library not found"
             sys.exit(1)
+        else:
+            # remove some prefixes, so that 
+            # BUILDROOT/opt/pkg/usr/lib64/python2.6   ->   lib64/python2.6
+            prefixes = [
+                buildroot_projdir,
+                self.buildout['buildout']['directory'],
+                "/usr",
+                "/usr/local",
+                "/opt"
+            ]
+            self.python_libdir_rel = self.python_libdir
+            for p in prefixes:
+                self.python_libdir_rel = self.python_libdir_rel.replace(p, "")
+
 
 
 
@@ -432,7 +446,8 @@ class FrozenRPM(object):
     def _fixScripts(self, replacements, buildroot_projdir):
         """
         Fix the copied scripts, by replacing some paths by the new
-        installation paths
+        installation paths, and creating a wrapper script that will call the
+        real Python script after setting some environment variables...
         """
         if self.options.has_key('scripts'):
 
@@ -454,6 +469,8 @@ class FrozenRPM(object):
                     for orig_str, new_str in replacements:
                         self._replaceInFile(new_scr_path, orig_str, new_str)
 
+                    # Create a wrapper file that will set the library path and
+                    # then call the real Python script
                     self._log('... and creating wrapper %s' % (os.path.basename(new_wrapper_path)))
                     with open(new_wrapper_path, "w") as w:
                         w.write("#!/bin/sh\n")
@@ -464,6 +481,11 @@ class FrozenRPM(object):
                             (self.install_prefix + "/lib64",
                              self.install_prefix + "/lib"))
                         w.write("export LD_LIBRARY_PATH\n\n")
+
+                        # Set a different PYTHONHOME
+                        w.write("PYTHONHOME=%s\n" % \
+                            (self.install_prefix + "/" + self.python_libdir_rel))
+                        w.write("export PYTHONHOME\n\n")
 
                         w.write("shift\n")
                         w.write("%s $@\n\n" %  new_rel_path)
