@@ -97,6 +97,13 @@ Example
                          /usr/local/lib/myextras*.so  ->   lib/
                          
         debug          = yes
+
+
+Known Bugs
+==========
+
+- You must comment out the prelink_undo_cmd at /etc/rpm/macros.prelink, or the RPM generated will fail to install.
+
 """
 
 
