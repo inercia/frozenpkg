@@ -58,7 +58,7 @@ python-version
 
 sys-python
     The python binary that we should copy to the package. Default: the python in the virtualenv.
-    
+
 sys-lib
    The system libraries directory. Default: the library of the sys-python when provided, or the lib directory in the virtualenv otherwise.
 
@@ -87,7 +87,7 @@ Example
         eggs           = ${main:eggs}
 
         sys-python     = /usr/lib/python2.6
-        
+
         scripts        =
                          testapp
 
@@ -95,7 +95,7 @@ Example
                          /usr/lib/libpython*          ->   lib/
                          /usr/local/lib/mylib.so      ->   lib/
                          /usr/local/lib/myextras*.so  ->   lib/
-                         
+
         debug          = yes
 
 
@@ -112,7 +112,7 @@ setup(
     name             = "as.recipe.frozenpkg",
     description      = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
     long_description = long_description,
-    version          = '0.2',
+    version          = '0.2.1',
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
@@ -144,5 +144,3 @@ setup(
         ]
     },
 )
-
-
