@@ -39,7 +39,7 @@ RPM_SPEC_TEMPLATE = """
 # define _cpu           SOMECPU
 
 %define _unpackaged_files_terminate_build   0
-%define __prelink_undo_cmd                  
+%define __prelink_undo_cmd
 
 Name:                 @PKG_NAME@
 Version:              @PKG_VERSION@
@@ -139,7 +139,7 @@ class FrozenRPM(object):
                 "/usr/bin/python" + vers.replace(".", ""),
                 "/usr/bin/python"
         ]
-        
+
         for p in pos_p:
             if os.path.exists(p):
                 return p
@@ -154,7 +154,7 @@ class FrozenRPM(object):
         if not pythonexe:
             return os.path.abspath(glob.glob(root + "/lib/python*")[0])
         else:
-            if os.path.exists(pythonexe):            
+            if os.path.exists(pythonexe):
                 pythonquery = [
                     pythonexe,
                     "-c",
@@ -170,12 +170,12 @@ class FrozenRPM(object):
                     libdir = [r.strip() for r in stdoutdata.split('\n')][0]
                     self._log('Library found at %s' % (libdir))
                     return libdir
-                    
-            return None            
+
+            return None
 
 
     def _getPythonVers(self, pythonexe):
-        if os.path.exists(pythonexe):            
+        if os.path.exists(pythonexe):
             pythonquery = [
                 pythonexe,
                 "-c",
@@ -191,8 +191,8 @@ class FrozenRPM(object):
                 vers = [r.strip() for r in stdoutdata.split('\n')][0]
                 self._log('Python version found %s' % (vers))
                 return vers
-                
-        return None            
+
+        return None
 
 
     def _getPythonInfo(self, buildroot_projdir):
@@ -207,7 +207,7 @@ class FrozenRPM(object):
             self.python_bin = self.options['sys-python']
         else:
             self.python_bin  = self._getPythonBin(buildroot_projdir, self.python_vers)
-            
+
         if not self.python_vers:
             self.python_vers = self._getPythonVers(self.python_bin)
 
@@ -222,7 +222,7 @@ class FrozenRPM(object):
                                     self.options['skip-sys'].lower() == "true")
         else:
             self.python_skip_sys = False
-            
+
         if self.options.has_key('sys-lib'):
             self.python_libdir = self.options['sys-lib']
         else:
@@ -232,7 +232,7 @@ class FrozenRPM(object):
             print "ERROR: python library not found"
             sys.exit(1)
         else:
-            # remove some prefixes, so that 
+            # remove some prefixes, so that
             # BUILDROOT/opt/pkg/usr/lib64/python2.6   ->   lib64/python2.6
             prefixes = [
                 buildroot_projdir,
@@ -263,7 +263,7 @@ class FrozenRPM(object):
         bins_ddir   = os.path.abspath(buildroot + "/bin")
 
         venv_python_bin  = self.buildout['buildout']['bin-directory'] + "/python"
-                
+
         self._log('Copying python binary %s to %s' % (self.python_bin, self.install_prefix + "/bin"))
         os.makedirs(bins_ddir)
         shutil.copy(self.python_bin, bins_ddir)
@@ -328,7 +328,7 @@ class FrozenRPM(object):
                        ]
 
         # here comes a really DIRTY HACK !!!
-        # in order to put the new library in front of the PYTHONPATH, we 
+        # in order to put the new library in front of the PYTHONPATH, we
         # replace "sys.path[0:0] = [" by the same string PLUS the new
         # library path...
         base_string     = "sys.path[0:0] = ["
@@ -336,11 +336,11 @@ class FrozenRPM(object):
                           "  '" + rel_lib_ddir                      + "',\n" + \
                           "  '" + rel_lib_ddir + "/lib-dynload"     + "',\n" + \
                           "  '" + rel_site_lib_ddir                 + "',"
-        
+
         replacements = replacements + [
                         (base_string, new_base_string)
                        ]
-        
+
         return replacements
 
 
@@ -350,9 +350,9 @@ class FrozenRPM(object):
         """
         assert (root_dir != None and len(root_dir) > 0)
         assert (install_prefix != None and len(install_prefix) > 0)
-        
+
         replacements  = []
-        
+
         buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
 
         # remove some prefixes, so that we remove "/usr" in "BUILDROOT/opt/pkg/usr/lib/python"
@@ -385,7 +385,7 @@ class FrozenRPM(object):
                     egg_dest = os.path.abspath(eggs_ddir + "/" + os.path.basename(egg_path))
 
                     shutil.copytree(egg_src, egg_dest)
-                    
+
                     egg_dest_rel = egg_dest.replace(root_dir, "")
                     replacements = replacements + [(egg_src, egg_dest_rel)]
 
@@ -403,7 +403,7 @@ class FrozenRPM(object):
 
                         egg_dest_rel = egg_dest.replace(root_dir, "")
                         replacements = replacements + [(egg_src, egg_dest_rel)]
-                        
+
                         self._log('Fixing egg-info')
                         src_egg_info = egg_dest + "/" + egg_name + ".egg-info"
                         shutil.move (src_egg_info, eggs_ddir)
@@ -417,22 +417,22 @@ class FrozenRPM(object):
         """
         assert (root_dir != None and len(root_dir) > 0)
         assert (install_prefix != None and len(install_prefix) > 0)
-        
+
         replacements  = []
-        
+
         buildroot     = os.path.normpath(root_dir + "/" + install_prefix)
-        
+
         extra_copies = [
             r.strip()
             for r in self.options.get('extra-copies', self.name).split('\n')
             if r.strip()]
-        for copy_line in extra_copies:            
+        for copy_line in extra_copies:
             try:
                 src, dest = [b.strip() for b in copy_line.split("->")]
             except Exception, e:
                 print "ERROR: malformed copy specification", e
                 return replacements
-            
+
             if not os.path.isabs(src):
                 src = self.buildout['buildout']['directory'] + '/' + src
 
@@ -442,7 +442,7 @@ class FrozenRPM(object):
                 shutil.copy(src_el, full_path_dest)
 
         return replacements
-            
+
     def _fixScripts(self, replacements, buildroot_projdir):
         """
         Fix the copied scripts, by replacing some paths by the new
@@ -460,11 +460,11 @@ class FrozenRPM(object):
                 new_scr_path      = buildroot_projdir + "/bin/" + scr + ".real"
                 new_wrapper_path  = buildroot_projdir + "/bin/" + scr
                 new_rel_path      = self.install_prefix + "/bin/" + scr + ".real"
-                
+
                 if os.path.exists(full_scr_path):
                     self._log('Copying %s' % (scr))
                     shutil.copyfile (full_scr_path, new_scr_path)
-                    
+
                     self._log('... and fixing paths at %s' % (scr))
                     for orig_str, new_str in replacements:
                         self._replaceInFile(new_scr_path, orig_str, new_str)
@@ -475,7 +475,7 @@ class FrozenRPM(object):
                     with open(new_wrapper_path, "w") as w:
                         w.write("#!/bin/sh\n")
                         w.write("\n\n")
-                        
+
                         # Set the right LD_LIBRARY_PATH
                         w.write("LD_LIBRARY_PATH=%s:%s:$LD_LIBRARY_PATH\n" % \
                             (self.install_prefix + "/lib64",
@@ -487,21 +487,20 @@ class FrozenRPM(object):
                             (self.install_prefix + "/" + self.python_libdir_rel))
                         w.write("export PYTHONHOME\n\n")
 
-                        w.write("shift\n")
                         w.write("%s $@\n\n" %  new_rel_path)
                         os.chmod(new_wrapper_path, 0755)
-                    
+
                     os.chmod(new_scr_path, 0755)
-                    
+
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
-        
+
     def _createTar(self, root_dir, tarfile):
         """
         Create a tar file with all the needed files
         """
         self._log('Creating tar file %s' % (tarfile))
-        
+
         # warning: these "tar" args work on Linux, but not on Mac
         os.system('cd "%(root_dir)s"; tar -c -p --dereference -f  "%(tarfile)s" *' % vars())
         return tarfile
@@ -533,15 +532,15 @@ class FrozenRPM(object):
             additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
 
         if self.options.has_key('debug'):
-            self.debug = True            
+            self.debug = True
 
         self.install_prefix  = self.options.get('install-prefix', os.path.join('opt', pkg_name))
-        
+
         buildroot_topdir     = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
         buildroot_projdir    = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
 
         # get the python binary, the version and the library
-        self._getPythonInfo(buildroot_projdir)        
+        self._getPythonInfo(buildroot_projdir)
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
@@ -555,7 +554,7 @@ class FrozenRPM(object):
         rpmspec = rpmspec.replace("@PKG_GROUP@",       pkg_group)
         rpmspec = rpmspec.replace("@PKG_AUTODEPS@",    pkg_autodeps)
         rpmspec = rpmspec.replace("@INSTALL_PREFIX@",  self.install_prefix)
-        rpmspec = rpmspec.replace("@BUILD_ROOT@",      buildroot_topdir)        
+        rpmspec = rpmspec.replace("@BUILD_ROOT@",      buildroot_topdir)
         rpmspec = rpmspec.replace("@ADDITIONAL_OPS@",  "\n".join(additional_ops))
 
 
@@ -580,7 +579,7 @@ class FrozenRPM(object):
         # copy all the files we need
         self._log("Build root = %s" % buildroot_topdir)
         replacements = replacements + self._copyPythonDist(buildroot_topdir, self.install_prefix)
-        replacements = replacements + self._copyNeededEggs(buildroot_topdir, self.install_prefix)        
+        replacements = replacements + self._copyNeededEggs(buildroot_topdir, self.install_prefix)
         replacements = replacements + self._copyExtraFiles(buildroot_topdir, self.install_prefix)
 
         replacements = replacements + [
@@ -590,9 +589,9 @@ class FrozenRPM(object):
         # fix the copied scripts, by replacing some paths by the new
         # installation paths
         self._fixScripts(replacements, buildroot_projdir)
-        
+
         # create a tar file at SOURCES/.
-        # we can pass a tar file to rpmbuild, so it is easier as we may need 
+        # we can pass a tar file to rpmbuild, so it is easier as we may need
         # a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
         tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
