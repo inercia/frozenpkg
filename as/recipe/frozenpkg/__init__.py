@@ -70,12 +70,16 @@ The @PKG_NAME@ package.
 
 
 
-class FrozenRPM(object):
+class FrozenPkg(object):
 
     def __init__(self, buildout, name, options):
         self.name, self.options = name, options
         self.buildout = buildout
-        self.debug    = False
+
+        if self.options.has_key('debug'):
+            self.debug = True
+        else:
+            self.debug = False
 
 
     def _checkPython(self):
@@ -505,7 +509,64 @@ class FrozenRPM(object):
         os.system('cd "%(root_dir)s"; tar -c -p --dereference -f  "%(tarfile)s" *' % vars())
         return tarfile
 
-    def _createRpm(self):
+
+
+
+###############################################################################
+
+class FrozenTgz(FrozenPkg):
+
+    def install(self):
+        """
+        Create a RPM
+        """
+        additional_ops = []
+
+        top_rpmbuild_dir  = os.path.abspath(tempfile.mkdtemp(suffix= '', prefix = 'tgzfreeze-'))
+
+        pkg_name       = self.options['pkg-name']
+        pkg_version    = self.options.get('pkg-version', '0.1')
+
+        self.install_prefix  = self.options.get('install-prefix', os.path.join('opt', pkg_name))
+
+        buildroot_topdir     = os.path.abspath(top_rpmbuild_dir + "/PKG/" + pkg_name)
+        buildroot_projdir    = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
+
+        # get the python binary, the version and the library
+        self._checkPython()
+        self._getPythonInfo(buildroot_projdir)
+
+        replacements  = []
+
+        # copy all the files we need
+        self._log("Build root = %s" % buildroot_topdir)
+        replacements = replacements + self._copyPythonDist(buildroot_topdir, self.install_prefix)
+        replacements = replacements + self._copyNeededEggs(buildroot_topdir, self.install_prefix)
+        replacements = replacements + self._copyExtraFiles(buildroot_topdir, self.install_prefix)
+
+        replacements = replacements + [
+            (self.buildout['buildout']['directory'],    self.install_prefix)
+        ]
+
+        # fix the copied scripts, by replacing some paths by the new
+        # installation paths
+        self._fixScripts(replacements, buildroot_projdir)
+
+        # create a tar file at SOURCES/.
+        # we can pass a tar file to rpmbuild, so it is easier as we may need
+        # a "tar" anyway.
+        # the spec file should be inside the tar, at the top level...
+        tarfile = top_rpmbuild_dir + "/TGZ/" + pkg_name + ".tar"
+        tarfile = self._createTar(buildroot_topdir, tarfile)
+
+    def update(self):
+        pass
+        
+###############################################################################
+
+class FrozenRPM(FrozenPkg):
+
+    def install(self):
         """
         Create a RPM
         """
@@ -531,15 +592,13 @@ class FrozenRPM(object):
         if self.options.has_key('pkg-deps'):
             additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
 
-        if self.options.has_key('debug'):
-            self.debug = True
-
         self.install_prefix  = self.options.get('install-prefix', os.path.join('opt', pkg_name))
 
         buildroot_topdir     = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
         buildroot_projdir    = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
 
         # get the python binary, the version and the library
+        self._checkPython()
         self._getPythonInfo(buildroot_projdir)
 
         # replace the variables in the "spec" template
@@ -634,10 +693,6 @@ class FrozenRPM(object):
             shutil.rmtree(top_rpmbuild_dir)
 
         return result_rpms
-
-    def install(self):
-        self._checkPython()
-        return self._createRpm()
 
     def update(self):
         pass

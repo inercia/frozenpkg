@@ -140,7 +140,9 @@ setup(
     entry_points = {
         'zc.buildout': [
             'default = as.recipe.frozenpkg:FrozenRPM',
-            'rpm     = as.recipe.frozenpkg:FrozenRPM'
+            
+            'rpm     = as.recipe.frozenpkg:FrozenRPM',
+            'tgz     = as.recipe.frozenpkg:FrozenTgz'
         ]
     },
 )
