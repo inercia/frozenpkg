@@ -131,7 +131,8 @@ setup(
     include_package_data = True,
     install_requires = [
         'setuptools',
-        'zc.buildout'
+        'zc.buildout',
+        'zc.recipe.egg'
         # -*- Extra requirements: -*-
     ],
 

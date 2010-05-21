@@ -17,6 +17,8 @@ from frozen import Frozen
 
 
 class FrozenTgz(Frozen):
+    # def __init__(self, buildout, name, options):
+    #     super(FrozenTgz, self).__init__(buildout, name, options)
 
     def install(self):
         """

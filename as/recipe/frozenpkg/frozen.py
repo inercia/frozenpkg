@@ -12,6 +12,8 @@ import fnmatch
 
 import subprocess
 
+import zc.recipe.egg
+
 
 SKIP_SYS_DIRS = [
     'site-packages',
@@ -22,19 +24,73 @@ SKIP_SYS_DIRS = [
 
 ####################################################################################################
 
+
+
+def makedirs(target, is_namespace=False):
+    """
+    Similar to os.makedirs, but adds __init__.py files as it goes.  Returns a boolean
+    indicating success.
+    """
+    drive, path = os.path.splitdrive(target)
+    parts = path.split(os.path.sep)
+    current = drive + os.path.sep
+    for part in parts:
+        current = os.path.join(current, part)
+        if os.path.islink(current):
+            return False
+        if not os.path.exists(current):
+            os.mkdir(current)
+            init_filename = os.path.join(current, '__init__.py')
+            if not os.path.exists(init_filename):
+                init_file = open(init_filename, 'w')
+                if is_namespace or part == 'Products':
+                    init_file.write(NAMESPACE_STANZA)
+                else:
+                    init_file.write('# mushroom')
+                init_file.close()
+    return True
+    
+    
+    
+    
 class Frozen(object):
     """
     Frozen packages base class
     """
 
     def __init__(self, buildout, name, options):
-        self.name, self.options = name, options
+        self.name = name
+        self.options = options
         self.buildout = buildout
+        self.logger = logging.getLogger(self.name)
 
-        if self.options.has_key('debug'):
+        self.egg = zc.recipe.egg.Egg(buildout, options['recipe'], options)
+
+        debug =  options.get('debug', '').lower()
+        if debug in ('yes', 'true', 'on', '1', 'sure'):
             self.debug = True
         else:
             self.debug = False
+
+        ignore_develop = options.get('ignore-develop', '').lower()
+        develop_eggs = []
+        if ignore_develop in ('yes', 'true', 'on', '1', 'sure'):
+            develop_eggs = os.listdir(
+                               buildout['buildout']['develop-eggs-directory'])
+            develop_eggs = [dev_egg[:-9] for dev_egg in develop_eggs]
+
+        ignores = options.get('ignores', '').split()
+        self.ignored_eggs = develop_eggs + ignores
+
+        products = options.get('products', '').split()
+        self.packages = [(p, 'Products') for p in products]
+        self.packages += [l.split()
+                         for l in options.get('packages', '').splitlines()
+                         if l.strip()]
+
+        # the "site-packages" installation directory
+        self.site_packages_rel_dir  = None
+        self.site_packages_full_dir = None
 
 
     def _checkPython(self):
@@ -44,7 +100,7 @@ class Frozen(object):
 
     def _log(self, msg, isdebug = True):
         if (not isdebug) or self.debug:
-            logging.getLogger(self.name).info(msg)
+            self.logger.info(msg)
 
 
     def _replaceInFile(self, filename, orig_str, new_str):
@@ -70,12 +126,15 @@ class Frozen(object):
         if not os.path.exists(src):
             self._log('Cannot find file %s (bad symlink)' % src)
             return
+            
         if os.path.exists(dest):
             self._log('File %s already exists' % dest)
             return
+            
         if not os.path.exists(os.path.dirname(dest)):
             self._log('Creating parent directories for %s' % os.path.dirname(dest))
             os.makedirs(os.path.dirname(dest))
+        
         # self._log('Copying to %s' % dest)
         if os.path.isdir(src):
             shutil.copytree(src, dest, symlinks = False)
@@ -198,7 +257,9 @@ class Frozen(object):
                 self.buildout['buildout']['directory'],
                 "/usr",
                 "/usr/local",
-                "/opt"
+                "/opt",
+                "/System/Library/Frameworks/Python.framework/Versions/" + self.python_vers,
+                "/System/Library/Frameworks/Python.framework/Versions/" + self.python_vers.replace(".", "")
             ]
             self.python_libdir_rel = self.python_libdir
             for p in prefixes:
@@ -246,25 +307,17 @@ class Frozen(object):
         else:
             lib_prefix = self.python_libdir
             lib_sdir = lib_prefix
-
-        # remove some prefixes, so that we remove "/usr" in "BUILDROOT/opt/pkg/usr/lib/python"
-        prefixes = [
-            "/usr",
-            "/usr/local",
-            "/opt",
-            self.buildout['buildout']['directory']
-        ]
-        for p in prefixes:
-            lib_prefix = lib_prefix.replace(p, "")
-
-        lib_ddir = os.path.abspath(buildroot + lib_prefix)
+            
+            
+        lib_ddir = os.path.abspath(buildroot + self.python_libdir_rel)
         rel_lib_ddir = lib_ddir.replace(root_dir, "")
 
         if not os.path.isdir(lib_sdir):
             print "ERROR: %s is not a directory" % lib_sdir
             sys.exit(1)
 
-        self._log('Copying system library %s to %s' % (lib_sdir, self.install_prefix + lib_prefix))
+        self._log('Copying system library %s to %s' % 
+                      (lib_sdir, self.install_prefix + self.python_libdir_rel))
         try:
             for fn in os.listdir(lib_sdir):
                 if not fn in SKIP_SYS_DIRS:
@@ -281,6 +334,10 @@ class Frozen(object):
             rel_site_lib_ddir = site_lib_ddir.replace(root_dir, "")
 
             shutil.copytree(site_lib_sdir, site_lib_ddir)
+            
+            # save the "site-packages" directory
+            self.site_packages_rel_dir  = rel_site_lib_ddir
+            self.site_packages_full_dir = site_lib_ddir
 
             replacements = replacements + [
                         (site_lib_sdir, rel_site_lib_ddir)
@@ -310,66 +367,107 @@ class Frozen(object):
         """
         assert (root_dir != None and len(root_dir) > 0)
         assert (install_prefix != None and len(install_prefix) > 0)
-
+        
         replacements = []
 
-        buildroot = os.path.normpath(root_dir + "/" + install_prefix)
+        assert (self.site_packages_full_dir != None)
+        eggs_ddir = self.site_packages_full_dir
 
-        # remove some prefixes, so that we remove "/usr" in "BUILDROOT/opt/pkg/usr/lib/python"
-        lib_prefix = self.python_libdir
-        prefixes = [
-            "/usr",
-            "/usr/local",
-            "/opt",
-            self.buildout['buildout']['directory']
-        ]
-        for p in prefixes:
-            lib_prefix = lib_prefix.replace(p, "")
+        self._log('Copying eggs to %s' % eggs_ddir)
 
-        eggs_sdir = self.buildout['buildout']['eggs-directory']
-        eggs_devsdir = self.buildout['buildout']['develop-eggs-directory']
-        eggs_ddir = os.path.normpath(buildroot + "/" + lib_prefix + "/site-packages/")
+        try:
+            requirements, ws = self.egg.working_set()
+            
+            for dist in ws.by_key.values():
+                project_name =  dist.project_name
+                self._log('... processing %s egg' % project_name)
+                if project_name in self.ignored_eggs:
+                    self._log('...... ignored')
+                else:                    
+                    namespaces = {}
+                    for line in dist._get_metadata('namespace_packages.txt'):
+                        ns = namespaces
+                        for part in line.split('.'):
+                            ns = ns.setdefault(part, {})
+                    top_level = list(dist._get_metadata('top_level.txt'))
+                    native_libs = list(dist._get_metadata('native_libs.txt'))
 
-        eggs = [
-            r.strip()
-            for r in self.options.get('eggs', self.name).split('\n')
-            if r.strip()]
+                    def create_namespaces(namespaces, ns_base=()):
+                        for k, v in namespaces.iteritems():
+                            ns_parts = ns_base + (k,)
+                            link_dir = os.path.join(eggs_ddir, *ns_parts)
+                            if not os.path.exists(link_dir):
+                                if not makedirs(link_dir, is_namespace=True):
+                                    self.logger.warn("WARNING: while processing egg %s: could not create namespace directory (%s).  Skipping." % (project_name, link_dir))
+                                    continue
+                            if len(v) > 0:
+                                create_namespaces(v, ns_parts)
+                            else:
+                                egg_ns_dir = os.path.join(dist.location, *ns_parts)
+                                if not os.path.isdir(egg_ns_dir):
+                                    self.logger.info("(While processing egg %s) Package '%s' is zipped.  Skipping." % (project_name, os.path.sep.join(ns_parts)))
+                                    continue
+                                dirs = os.listdir(egg_ns_dir)
+                                for name in dirs:
+                                    if not os.path.isdir(os.path.join(egg_ns_dir, name)):
+                                        continue
+                                    if name.startswith('.'):
+                                        continue
+                                    name_parts = ns_parts + (name,)
+                                    src = os.path.join(dist.location, *name_parts)
+                                    dst = os.path.join(eggs_ddir, *name_parts)
+                                    if os.path.exists(dst):
+                                        continue
+                                    shutil.copy(src, dst)
 
-        for egg_name in eggs:
-            # first, look for any eggs we need from the "eggs" directory
-            for egg_path in os.listdir(eggs_sdir):
-                if fnmatch.fnmatch(egg_path, egg_name + "*.egg"):
-                    self._log('Copying egg %s to %s' % (egg_path, self.install_prefix + lib_prefix + "/site-packages/"))
+                    create_namespaces(namespaces)
+                    
+                    for package_name in top_level:
+                        if package_name in namespaces:
+                            # These are processed in create_namespaces
+                            continue
+                        else:
+                            if not os.path.isdir(dist.location):
+                                self.logger.info("...... copying package %s / %s." % (project_name, package_name))
+                                dest = os.path.join(eggs_ddir, package_name)                                
+                                shutil.copy(dist.location, dest)                                
+                            else:
+                                package_location = os.path.join(dist.location, package_name)
+                                link_location = os.path.join(eggs_ddir, package_name)
+                                
+                                # check for single python module
+                                if not os.path.exists(package_location):
+                                    package_location = os.path.join(dist.location, package_name+".py")
+                                    link_location = os.path.join(eggs_ddir, package_name+".py")
+                                
+                                # check for native libs
+                                # XXX - this should use native_libs from above
+                                if not os.path.exists(package_location):
+                                    package_location = os.path.join(dist.location, package_name+".so")
+                                    link_location = os.path.join(eggs_ddir, package_name+".so")
+                                
+                                if not os.path.exists(package_location):
+                                    package_location = os.path.join(dist.location, package_name+".dll")
+                                    link_location = os.path.join(eggs_ddir, package_name+".dll")
+                                
+                                if not os.path.exists(package_location):
+                                    self.logger.warn("WARNING: (While processing egg %s) Package '%s' not found.  Skipping." % (project_name, package_name))
+                                    continue
+                                
+                                if not os.path.exists(link_location):
+                                    self._log('...... copying tree for %s' % (package_name))
+                                    shutil.copytree(package_location, link_location)
+                                else:
+                                    self.logger.info("(While processing egg %s) Link already exists (%s -> %s).  Skipping." % (project_name, package_location, link_location))
 
-                    egg_src = os.path.abspath(eggs_sdir + "/" + os.path.basename(egg_path))
-                    egg_dest = os.path.abspath(eggs_ddir + "/" + os.path.basename(egg_path))
-
-                    shutil.copytree(egg_src, egg_dest)
-
-                    egg_dest_rel = egg_dest.replace(root_dir, "")
-                    replacements = replacements + [(egg_src, egg_dest_rel)]
-
-            # now look for the "develop-eggs"
-            for egg_path in os.listdir(eggs_devsdir):
-                if fnmatch.fnmatch(egg_path, egg_name + "*.egg-link"):
-                    egg_lnk_src = os.path.normpath(eggs_devsdir + "/" + os.path.basename(egg_path))
-
-                    with open(egg_lnk_src) as f:
-                        egg_src = f.readline().strip()
-                        egg_dest = os.path.normpath(eggs_ddir + "/" + egg_name)
-
-                        self._log('Copying link egg %s' % (egg_name))
-                        shutil.copytree(egg_src, egg_dest)
-
-                        egg_dest_rel = egg_dest.replace(root_dir, "")
-                        replacements = replacements + [(egg_src, egg_dest_rel)]
-
-                        self._log('Fixing egg-info')
-                        src_egg_info = egg_dest + "/" + egg_name + ".egg-info"
-                        shutil.move (src_egg_info, eggs_ddir)
-
+        except:
+            if os.path.exists(eggs_ddir) and not self.debug:
+                shutil.rmtree(eggs_ddir)
+            raise
 
         return replacements
+
+
 
     def _copyExtraFiles(self, root_dir, install_prefix):
         """
@@ -401,10 +499,6 @@ class Frozen(object):
                 self._log('Copying %s' % src_el)
                 try:
                     if os.path.isdir(src_el):
-#                        if not os.path.exists(full_path_dest):
-#                            self._log('... creating dir %s' % dest)
-#                            os.makedirs(full_path_dest)
-
                         shutil.copytree(src_el, full_path_dest)
                     else:
                         shutil.copy(src_el, full_path_dest)
@@ -481,7 +575,8 @@ class Frozen(object):
 
         # warning: these "tar" args work on Linux, but not on Mac
         if os.uname()[0] == 'Darwin':
-            tar_flags = "cpf"
+            # -H follows the symlink and archives the link target
+            tar_flags = "-c -p -f"
         else:
             tar_flags = "-c -p --dereference -f"
 
@@ -503,3 +598,8 @@ class Frozen(object):
 
 
 
+
+###############################################################################
+
+if __name__ == '__main__':
+    f = Frozen()
