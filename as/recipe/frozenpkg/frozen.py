@@ -470,10 +470,30 @@ class Frozen(object):
         """
         Create a tar file with all the needed files
         """
-        self._log('Creating tar file %s' % (tarfile))
+
+        # Check if we can create the tar file
+        f = os.path.basename(tarfile)
+        d = os.path.dirname(tarfile)
+        if not os.path.exists(d):
+            os.makedirs(d)
+
+        self._log('Creating tar file %s at %s' % (f, d))
 
         # warning: these "tar" args work on Linux, but not on Mac
-        os.system('cd "%(root_dir)s"; tar -c -p --dereference -f  "%(tarfile)s" *' % vars())
+        if os.uname()[0] == 'Darwin':
+            if self.debug:
+                tar_flags = "cvpf"
+            else:
+                tar_flags = "cpf"
+            cmd = 'cd "%(root_dir)s"; tar %(tar_flags)s  "%(tarfile)s" *' % vars()            
+        else:
+            tar_flags = "-c -p --dereference -f"
+            cmd = 'cd "%(root_dir)s"; tar %(tar_flags)s "%(tarfile)s" *' % vars()
+
+        if self.debug:
+            self._log('... running %s' % (cmd))
+
+        os.system(cmd)
         return tarfile
 
 
