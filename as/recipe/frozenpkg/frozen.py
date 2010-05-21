@@ -466,7 +466,7 @@ class Frozen(object):
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
 
-    def _createTar(self, root_dir, tarfile):
+    def _createTar(self, root_dir, tarfile, compress = False):
         """
         Create a tar file with all the needed files
         """
@@ -481,20 +481,25 @@ class Frozen(object):
 
         # warning: these "tar" args work on Linux, but not on Mac
         if os.uname()[0] == 'Darwin':
-            if self.debug:
-                tar_flags = "cvpf"
-            else:
-                tar_flags = "cpf"
-            cmd = 'cd "%(root_dir)s"; tar %(tar_flags)s  "%(tarfile)s" *' % vars()            
+            tar_flags = "cpf"
         else:
             tar_flags = "-c -p --dereference -f"
-            cmd = 'cd "%(root_dir)s"; tar %(tar_flags)s "%(tarfile)s" *' % vars()
 
+        cmd = 'cd "%(root_dir)s" ; tar %(tar_flags)s "%(tarfile)s" *' % vars()
         if self.debug:
             self._log('... running %s' % (cmd))
-
         os.system(cmd)
-        return tarfile
+
+        if compress:
+            if self.debug:
+                self._log('... compressing %s' % (tarfile))
+            cmd = 'gzip "%(tarfile)s"' % vars()
+            os.system(cmd)
+            result = os.path.join(tarfile + ".gz")
+        else:
+            result = tarfile            
+
+        return result
 
 
 

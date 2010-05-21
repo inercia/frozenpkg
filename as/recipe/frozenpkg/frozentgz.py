@@ -34,6 +34,7 @@ class FrozenTgz(Frozen):
 
         buildroot_topdir = os.path.abspath(top_tgzbuild_dir + "/PKG/" + pkg_name)
         buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
+        buildroot_tgzs = os.path.abspath(top_tgzbuild_dir + "/TGZ")
 
         # get the python binary, the version and the library
         self._checkPython()
@@ -59,13 +60,15 @@ class FrozenTgz(Frozen):
         # we can pass a tar file to rpmbuild, so it is easier as we may need
         # a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
-        tarfile = top_tgzbuild_dir + "/TGZ/" + pkg_name + ".tar"
-        tarfile = self._createTar(buildroot_topdir, tarfile)
+        tarfile = os.path.join(buildroot_tgzs, pkg_name + "-" + pkg_version + ".tar")
+        tgzfile = self._createTar(buildroot_topdir, tarfile, compress = True)
+        b_tgzfile = os.path.basename(tgzfile)
 
-        shutil.copy(tarfile, self.buildout['buildout']['directory'])
+        full_tgzfile = os.path.join(self.buildout['buildout']['directory'], b_tgzfile)
+        shutil.copy(tgzfile, full_tgzfile)
 
-        self._log('Built %s' % (tarfile))
-        result_tgzs = result_tgzs + [tarfile]
+        self._log('Built %s' % (full_tgzfile))
+        result_tgzs = result_tgzs + [full_tgzfile]
 
         if not self.debug:
             shutil.rmtree(top_tgzbuild_dir)
