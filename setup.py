@@ -84,7 +84,7 @@ Example
 
         install-prefix = /opt/testapp
 
-        eggs           = ${main:eggs}
+        eggs           = ${buildout:eggs}
 
         sys-python     = /usr/lib/python2.6
 
@@ -112,7 +112,7 @@ setup(
     name = "as.recipe.frozenpkg",
     description = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
     long_description = long_description,
-    version = '0.2.1',
+    version = '0.2.2',
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
