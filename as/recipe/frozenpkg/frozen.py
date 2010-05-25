@@ -24,9 +24,17 @@ SKIP_SYS_DIRS = [
 
 ####################################################################################################
 
+NAMESPACE_STANZA = """
+# See http://peak.telecommunity.com/DevCenter/setuptools#namespace-packages
+try:
+    __import__('pkg_resources').declare_namespace(__name__)
+except ImportError:
+    from pkgutil import extend_path
+    __path__ = extend_path(__path__, __name__)
+"""
 
 
-def makedirs(target, is_namespace=False):
+def makedirs(target, is_namespace = False):
     """
     Similar to os.makedirs, but adds __init__.py files as it goes.  Returns a boolean
     indicating success.
@@ -43,7 +51,7 @@ def makedirs(target, is_namespace=False):
             init_filename = os.path.join(current, '__init__.py')
             if not os.path.exists(init_filename):
                 init_file = open(init_filename, 'w')
-                if is_namespace or part == 'Products':
+                if is_namespace:
                     init_file.write(NAMESPACE_STANZA)
                 else:
                     init_file.write('# mushroom')
@@ -51,7 +59,7 @@ def makedirs(target, is_namespace=False):
     return True
     
     
-    
+####################################################################################################
     
 class Frozen(object):
     """
@@ -397,9 +405,10 @@ class Frozen(object):
                             ns_parts = ns_base + (k,)
                             link_dir = os.path.join(eggs_ddir, *ns_parts)
                             if not os.path.exists(link_dir):
-                                if not makedirs(link_dir, is_namespace=True):
+                                if not makedirs(link_dir, is_namespace = True):
                                     self.logger.warn("WARNING: while processing egg %s: could not create namespace directory (%s).  Skipping." % (project_name, link_dir))
                                     continue
+                                    
                             if len(v) > 0:
                                 create_namespaces(v, ns_parts)
                             else:
@@ -416,9 +425,11 @@ class Frozen(object):
                                     name_parts = ns_parts + (name,)
                                     src = os.path.join(dist.location, *name_parts)
                                     dst = os.path.join(eggs_ddir, *name_parts)
-                                    if os.path.exists(dst):
-                                        continue
-                                    shutil.copy(src, dst)
+                                    if not os.path.exists(dst):                                   
+                                        if os.path.isdir(src):
+                                            shutil.copytree(src, dst)
+                                        else:
+                                            shutil.copy(src, dst)
 
                     create_namespaces(namespaces)
                     
@@ -428,7 +439,7 @@ class Frozen(object):
                             continue
                         else:
                             if not os.path.isdir(dist.location):
-                                self.logger.info("...... copying package %s / %s." % (project_name, package_name))
+                                self.logger.info("...... copying package '%s' / '%s'." % (project_name, package_name))
                                 dest = os.path.join(eggs_ddir, package_name)                                
                                 shutil.copy(dist.location, dest)                                
                             else:
@@ -437,28 +448,28 @@ class Frozen(object):
                                 
                                 # check for single python module
                                 if not os.path.exists(package_location):
-                                    package_location = os.path.join(dist.location, package_name+".py")
-                                    link_location = os.path.join(eggs_ddir, package_name+".py")
+                                    package_location = os.path.join(dist.location, package_name + ".py")
+                                    link_location = os.path.join(eggs_ddir, package_name + ".py")
                                 
                                 # check for native libs
                                 # XXX - this should use native_libs from above
                                 if not os.path.exists(package_location):
-                                    package_location = os.path.join(dist.location, package_name+".so")
-                                    link_location = os.path.join(eggs_ddir, package_name+".so")
+                                    package_location = os.path.join(dist.location, package_name + ".so")
+                                    link_location = os.path.join(eggs_ddir, package_name + ".so")
                                 
                                 if not os.path.exists(package_location):
                                     package_location = os.path.join(dist.location, package_name+".dll")
-                                    link_location = os.path.join(eggs_ddir, package_name+".dll")
+                                    link_location = os.path.join(eggs_ddir, package_name + ".dll")
                                 
                                 if not os.path.exists(package_location):
-                                    self.logger.warn("WARNING: (While processing egg %s) Package '%s' not found.  Skipping." % (project_name, package_name))
+                                    self.logger.warn("WARNING: while processing egg '%s': package '%s' not found. Skipping." % (project_name, package_name))
                                     continue
                                 
                                 if not os.path.exists(link_location):
                                     self._log('...... copying tree for %s' % (package_name))
                                     shutil.copytree(package_location, link_location)
                                 else:
-                                    self.logger.info("(While processing egg %s) Link already exists (%s -> %s).  Skipping." % (project_name, package_location, link_location))
+                                    self.logger.info("WARNING: while processing egg '%s': link already exists '%s' -> '%s'. Skipping." % (project_name, package_location, link_location))
 
         except:
             if os.path.exists(eggs_ddir) and not self.debug:
@@ -547,7 +558,7 @@ class Frozen(object):
                              self.install_prefix + "/lib"))
                         w.write("export LD_LIBRARY_PATH\n\n")
 
-                        # Set a different PYTHONHOME
+                        # Set a different PYTHONPATH
                         w.write("PYTHONPATH=%s\n" % \
                             (self.install_prefix + "/" + self.python_libdir_rel))
                         w.write("export PYTHONPATH\n\n")
