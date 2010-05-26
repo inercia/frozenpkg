@@ -534,6 +534,7 @@ class Frozen(object):
         buildroot = os.path.normpath(root_dir + "/" + install_prefix)
 
         # copy the activate_this.py file
+        self._log("Copying activate_this.py")
         activate_this_src = os.path.join(self.buildout['buildout']['bin-directory'], "activate_this.py")
         activate_this_dst = os.path.normpath(buildroot + "/bin/activate_this.py")
         shutil.copy(activate_this_src, activate_this_dst)
