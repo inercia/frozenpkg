@@ -1,11 +1,13 @@
 
+PYTHON=python2.6
+
 all: build
 
 build:
-	python ./setup.py bdist_egg sdist
+	$(PYTHON) ./setup.py bdist_egg sdist
 
 upload: build
-	python ./setup.py bdist_egg sdist upload
+	$(PYTHON) ./setup.py bdist_egg sdist upload
 
 clean:
 	rm -rf dist build *.egg-info
