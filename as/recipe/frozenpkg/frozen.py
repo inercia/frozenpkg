@@ -522,6 +522,25 @@ class Frozen(object):
         return pythonpath
 
 
+    def _copyAuxFiles(self, root_dir, install_prefix):
+        """
+        Copy some auxiliary files
+        """
+        assert (root_dir != None and len(root_dir) > 0)
+        assert (install_prefix != None and len(install_prefix) > 0)
+
+        pythonpath = []
+
+        buildroot = os.path.normpath(root_dir + "/" + install_prefix)
+
+        # copy the activate_this.py file
+        activate_this_src = os.path.join(self.buildout['buildout']['bin-directory'], "activate_this.py")
+        activate_this_dst = os.path.normpath(buildroot + "/bin/activate_this.py")
+        shutil.copy(activate_this_src, activate_this_dst)
+
+        return pythonpath
+
+
     def _copyAll(self, buildroot_topdir):
         pythonpath = []
 
@@ -534,6 +553,7 @@ class Frozen(object):
         pythonpath += self._copyPythonDist(buildroot_topdir, self.install_prefix)
         pythonpath += self._copyNeededEggs(buildroot_topdir, self.install_prefix)
         pythonpath += self._copyExtraFiles(buildroot_topdir, self.install_prefix)
+        pythonpath += self._copyAuxFiles(buildroot_topdir, self.install_prefix)
 
         pythonpath += [
                        self.site_packages_rel_dir,
