@@ -5,6 +5,7 @@ import sys
 import shutil
 import tempfile
 import logging
+import re
 
 import glob
 import fnmatch
@@ -59,7 +60,10 @@ def makedirs(target, is_namespace = False):
     return True
 
 
-####################################################################################################
+
+
+
+################################################################################
 
 class Frozen(object):
     """
@@ -71,6 +75,8 @@ class Frozen(object):
         self.options = options
         self.buildout = buildout
         self.logger = logging.getLogger(self.name)
+
+        self.options["relative-paths"] = "true"
 
         self.egg = zc.recipe.egg.Egg(buildout, options['recipe'], options)
 
@@ -101,6 +107,7 @@ class Frozen(object):
         self.site_packages_full_dir = None
 
 
+
     def _checkPython(self):
         if sys.version_info < (2, 6):
             raise "must use python 2.6 or greater"
@@ -109,22 +116,6 @@ class Frozen(object):
     def _log(self, msg, isdebug = True):
         if (not isdebug) or self.debug:
             self.logger.info(msg)
-
-
-    def _replaceInFile(self, filename, orig_str, new_str):
-        #self._log('Replacing %s by %s' % (orig_str, new_str))
-
-        try:
-            with open(filename, "r") as f:
-                content = f.read(65535 * 4)
-
-            new_content = content.replace(orig_str, new_str)
-
-            with open(filename, "w") as f:
-                f.write(new_content)
-
-        except Exception, e:
-            print "ERROR: when replacing strings in %s" % filename, e
 
 
     def _copyFiles(self, src, dest):
@@ -158,6 +149,7 @@ class Frozen(object):
                 self.buildout['buildout']['bin-directory'] + "/python" + vers,
                 self.buildout['buildout']['bin-directory'] + "/python" + vers.replace(".", ""),
                 self.buildout['buildout']['bin-directory'] + "/python",
+                self.buildout['buildout']['python'],
                 "/usr/local/bin/python" + vers,
                 "/usr/local/bin/python" + vers.replace(".", ""),
                 "/usr/local/bin/python",
@@ -275,6 +267,17 @@ class Frozen(object):
 
 
 
+    def _setupPython(self, buildroot_projdir):
+        """
+        get the python binary, the version and the library
+        """
+        self._checkPython()
+        self._getPythonInfo(buildroot_projdir)
+
+
+
+
+    ############################################################################
 
     def _copyPythonDist(self, root_dir, install_prefix):
         """
@@ -282,7 +285,7 @@ class Frozen(object):
         the standard library files.
         """
 
-        replacements = []
+        pythonpath = []
 
         buildroot = os.path.abspath(root_dir + "/" + install_prefix)
 
@@ -296,10 +299,6 @@ class Frozen(object):
         os.makedirs(bins_ddir)
         shutil.copy(self.python_bin, bins_ddir)
 
-        replacements = replacements + [
-                                      (self.python_bin, self.python_bin_rel),
-                                      (venv_python_bin, self.python_bin_rel)
-                                      ]
 
         # calculate the local python "lib"
         venv_lib_prefix = '/lib/python' + self.python_vers
@@ -347,9 +346,6 @@ class Frozen(object):
             self.site_packages_rel_dir = rel_site_lib_ddir
             self.site_packages_full_dir = site_lib_ddir
 
-            replacements = replacements + [
-                        (site_lib_sdir, rel_site_lib_ddir)
-                       ]
 
         # here comes a really DIRTY HACK !!!
         # in order to put the new library in front of the PYTHONPATH, we
@@ -361,11 +357,8 @@ class Frozen(object):
                           "  '" + rel_lib_ddir + "/lib-dynload" + "',\n" + \
                           "  '" + rel_site_lib_ddir + "',"
 
-        replacements = replacements + [
-                        (base_string, new_base_string)
-                       ]
 
-        return replacements
+        return pythonpath
 
 
     def _copyNeededEggs(self, root_dir, install_prefix):
@@ -376,7 +369,7 @@ class Frozen(object):
         assert (root_dir != None and len(root_dir) > 0)
         assert (install_prefix != None and len(install_prefix) > 0)
 
-        replacements = []
+        pythonpath = []
 
         assert (self.site_packages_full_dir != None)
         eggs_ddir = self.site_packages_full_dir
@@ -438,45 +431,54 @@ class Frozen(object):
                             # These are processed in create_namespaces
                             continue
                         else:
-                            if not os.path.isdir(dist.location):
-                                self.logger.info("...... copying package '%s' / '%s'." % (project_name, package_name))
-                                dest = os.path.join(eggs_ddir, package_name)
-                                shutil.copy(dist.location, dest)
-                            else:
+                            if os.path.isdir(dist.location):
                                 package_location = os.path.join(dist.location, package_name)
-                                link_location = os.path.join(eggs_ddir, package_name)
+                                package_dest = os.path.join(eggs_ddir, package_name)
 
                                 # check for single python module
                                 if not os.path.exists(package_location):
                                     package_location = os.path.join(dist.location, package_name + ".py")
-                                    link_location = os.path.join(eggs_ddir, package_name + ".py")
+                                    package_dest = os.path.join(eggs_ddir, package_name + ".py")
 
                                 # check for native libs
                                 # XXX - this should use native_libs from above
                                 if not os.path.exists(package_location):
                                     package_location = os.path.join(dist.location, package_name + ".so")
-                                    link_location = os.path.join(eggs_ddir, package_name + ".so")
+                                    package_dest = os.path.join(eggs_ddir, package_name + ".so")
 
                                 if not os.path.exists(package_location):
                                     package_location = os.path.join(dist.location, package_name + ".dll")
-                                    link_location = os.path.join(eggs_ddir, package_name + ".dll")
+                                    package_dest = os.path.join(eggs_ddir, package_name + ".dll")
 
                                 if not os.path.exists(package_location):
                                     self.logger.warn("WARNING: while processing egg '%s': package '%s' not found. Skipping." % (project_name, package_name))
                                     continue
 
-                                if not os.path.exists(link_location):
-                                    self._log('...... copying tree for %s' % (package_name))
-                                    shutil.copytree(package_location, link_location)
-                                else:
-                                    self.logger.info("WARNING: while processing egg '%s': link already exists '%s' -> '%s'. Skipping." % (project_name, package_location, link_location))
+                                if not os.path.exists(package_dest):
+                                    self._log('...... copying package %s' % (package_name))
+                                    shutil.copytree(package_location, package_dest)
+
+                                    # Add this package to the python path
+                                    d = os.path.join(self.site_packages_rel_dir, package_name)
+                                    pythonpath += [d]
+                            else:
+                                b = os.path.basename(dist.location)
+                                full_dir = os.path.join(eggs_ddir, b)
+                                if not os.path.exists(full_dir):
+                                    self.logger.info("...... copying zipped egg '%s'." % (b))
+                                    shutil.copy(dist.location, eggs_ddir)
+
+                                    # Add this package to the python path
+                                    d = os.path.join(self.site_packages_rel_dir, b)
+                                    pythonpath += [d]
+                                    continue
 
         except:
             if os.path.exists(eggs_ddir) and not self.debug:
                 shutil.rmtree(eggs_ddir)
             raise
 
-        return replacements
+        return pythonpath
 
 
 
@@ -487,7 +489,7 @@ class Frozen(object):
         assert (root_dir != None and len(root_dir) > 0)
         assert (install_prefix != None and len(install_prefix) > 0)
 
-        replacements = []
+        pythonpath = []
 
         buildroot = os.path.normpath(root_dir + "/" + install_prefix)
 
@@ -500,7 +502,7 @@ class Frozen(object):
                 src, dest = [b.strip() for b in copy_line.split("->")]
             except Exception, e:
                 print "ERROR: malformed copy specification", e
-                return replacements
+                return pythonpath
 
             if not os.path.isabs(src):
                 src = self.buildout['buildout']['directory'] + '/' + src
@@ -517,19 +519,57 @@ class Frozen(object):
                 except Exception, e:
                     self._log('ERROR: when copying %s to %s' % (src_el, full_path_dest))
 
-        return replacements
+        return pythonpath
 
-    def _fixScripts(self, replacements, buildroot_projdir):
+
+    def _copyAll(self, buildroot_topdir):
+        pythonpath = []
+
+        assert (self.install_prefix is not None)
+        assert (self.python_libdir_rel is not None)
+
+        # copy all the files we need
+        self._log("Build root = %s" % buildroot_topdir)
+
+        pythonpath += self._copyPythonDist(buildroot_topdir, self.install_prefix)
+        pythonpath += self._copyNeededEggs(buildroot_topdir, self.install_prefix)
+        pythonpath += self._copyExtraFiles(buildroot_topdir, self.install_prefix)
+
+        pythonpath += [
+                       self.site_packages_rel_dir,
+                       self.install_prefix + self.python_libdir_rel
+                       ]
+
+        return pythonpath
+
+
+
+
+    ############################################################################
+
+    def _fixScripts(self, buildroot_projdir, pythonpath):
         """
         Fix the copied scripts, by replacing some paths by the new
         installation paths, and creating a wrapper script that will call the
         real Python script after setting some environment variables...
         """
+        assert (self.install_prefix is not None)
+
         if self.options.has_key('scripts'):
 
             fix_scripts = [
                 r.strip()
-                for r in self.options['scripts'].split('\n') if r.strip()]
+                for r in self.options['scripts'].split('\n')
+                if r.strip()]
+
+
+            # obtain the extra-paths form the egg, but replacing some root paths...
+            def _replace_paths(x):
+                x = x.replace(buildroot_projdir, self.install_prefix)
+                x = x.replace(self.buildout['buildout']['directory'], self.install_prefix)
+                return x
+
+            pythonpath += [_replace_paths(x) for x in self.egg.extra_paths]
 
             for scr in fix_scripts:
                 full_scr_path = self.buildout['buildout']['bin-directory'] + "/" + scr
@@ -540,10 +580,6 @@ class Frozen(object):
                 if os.path.exists(full_scr_path):
                     self._log('Copying %s' % (scr))
                     shutil.copyfile (full_scr_path, new_scr_path)
-
-                    self._log('... and fixing paths at %s' % (scr))
-                    for orig_str, new_str in replacements:
-                        self._replaceInFile(new_scr_path, orig_str, new_str)
 
                     # Create a wrapper file that will set the library path and
                     # then call the real Python script
@@ -558,10 +594,14 @@ class Frozen(object):
                              self.install_prefix + "/lib"))
                         w.write("export LD_LIBRARY_PATH\n\n")
 
-                        # Set a different PYTHONPATH
-                        w.write("PYTHONPATH=%s\n" % \
-                            (self.install_prefix + "/" + self.python_libdir_rel))
-                        w.write("export PYTHONPATH\n\n")
+                        if len(pythonpath) > 0:
+                            for i in pythonpath:
+                                self._log('..... pythonpath: %s' % i)
+
+                            # Set a different PYTHONPATH
+                            s = ":\\\n".join(pythonpath)
+                            w.write("PYTHONPATH=\"%s\"\n" % s)
+                            w.write("export PYTHONPATH\n\n")
 
                         w.write("%s %s $@\n\n" % (self.python_bin_rel, new_rel_path))
                         os.chmod(new_wrapper_path, 0755)
@@ -570,6 +610,8 @@ class Frozen(object):
 
                 else:
                     self._log('WARNING: script %s not found' % (full_scr_path))
+
+
 
     def _createTar(self, root_dir, tarfile, compress = False):
         """
@@ -610,7 +652,10 @@ class Frozen(object):
 
 
 
-###############################################################################
+################################################################################
 
 if __name__ == '__main__':
     f = Frozen()
+
+
+

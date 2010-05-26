@@ -101,8 +101,7 @@ class FrozenRPM(Frozen):
         buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
 
         # get the python binary, the version and the library
-        self._checkPython()
-        self._getPythonInfo(buildroot_projdir)
+        self._setupPython(buildroot_projdir)
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
@@ -136,21 +135,10 @@ class FrozenRPM(Frozen):
         if spec_file:
             spec_file.close()
 
-        replacements = []
+        pythonpath = self._copyAll(buildroot_topdir)
 
-        # copy all the files we need
-        self._log("Build root = %s" % buildroot_topdir)
-        replacements = replacements + self._copyPythonDist(buildroot_topdir, self.install_prefix)
-        replacements = replacements + self._copyNeededEggs(buildroot_topdir, self.install_prefix)
-        replacements = replacements + self._copyExtraFiles(buildroot_topdir, self.install_prefix)
-
-        replacements = replacements + [
-            (self.buildout['buildout']['directory'], self.install_prefix)
-        ]
-
-        # fix the copied scripts, by replacing some paths by the new
-        # installation paths
-        self._fixScripts(replacements, buildroot_projdir)
+        # fix the copied scripts, by replacing some paths by the new installation paths
+        self._fixScripts(buildroot_projdir, pythonpath)
 
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need

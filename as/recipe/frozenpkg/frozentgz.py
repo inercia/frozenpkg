@@ -17,8 +17,7 @@ from frozen import Frozen
 
 
 class FrozenTgz(Frozen):
-    # def __init__(self, buildout, name, options):
-    #     super(FrozenTgz, self).__init__(buildout, name, options)
+
 
     def install(self):
         """
@@ -26,7 +25,7 @@ class FrozenTgz(Frozen):
         """
         additional_ops = []
         result_tgzs = []
-        
+
         top_tgzbuild_dir = os.path.abspath(tempfile.mkdtemp(suffix = '', prefix = 'tgzfreeze-'))
 
         pkg_name = self.options['pkg-name']
@@ -39,24 +38,16 @@ class FrozenTgz(Frozen):
         buildroot_tgzs = os.path.abspath(top_tgzbuild_dir + "/TGZ")
 
         # get the python binary, the version and the library
-        self._checkPython()
-        self._getPythonInfo(buildroot_projdir)
+        self._setupPython(buildroot_projdir)
 
-        replacements = []
+        pythonpath = self._copyAll(buildroot_topdir)
 
-        # copy all the files we need
-        self._log("Build root = %s" % buildroot_topdir)
-        replacements = replacements + self._copyPythonDist(buildroot_topdir, self.install_prefix)
-        replacements = replacements + self._copyNeededEggs(buildroot_topdir, self.install_prefix)
-        replacements = replacements + self._copyExtraFiles(buildroot_topdir, self.install_prefix)
-
-        replacements = replacements + [
-            (self.buildout['buildout']['directory'], self.install_prefix)
-        ]
+        for i in pythonpath:
+            print "    ", i
 
         # fix the copied scripts, by replacing some paths by the new
         # installation paths
-        self._fixScripts(replacements, buildroot_projdir)
+        self._fixScripts(buildroot_projdir, pythonpath)
 
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need
@@ -74,7 +65,7 @@ class FrozenTgz(Frozen):
 
         if not self.debug:
             shutil.rmtree(top_tgzbuild_dir)
-    
+
         return result_tgzs
 
     def update(self):
