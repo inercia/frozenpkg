@@ -426,6 +426,17 @@ class Frozen(object):
 
                     create_namespaces(namespaces)
 
+                    def copy_package(package_location, package_dest, package_name):
+                        self._log('...... copying package %s' % (package_name))
+                        if os.path.isdir(package_location):
+                            shutil.copytree(package_location, package_dest)
+                        else:
+                            shutil.copy(package_location, package_dest)
+                                    
+                        # Add this package to the python path                                        
+                        d = os.path.join(self.site_packages_rel_dir, package_name)
+                        return [d]
+
                     for package_name in top_level:
                         if package_name in namespaces:
                             # These are processed in create_namespaces
@@ -434,36 +445,25 @@ class Frozen(object):
                             if os.path.isdir(dist.location):
                                 package_location = os.path.join(dist.location, package_name)
                                 package_dest = os.path.join(eggs_ddir, package_name)
+                                if os.path.exists(package_location):
+                                    pythonpath += copy_package(package_location, package_dest, package_name)
 
                                 # check for single python module
-                                if not os.path.exists(package_location):
-                                    package_location = os.path.join(dist.location, package_name + ".py")
-                                    package_dest = os.path.join(eggs_ddir, package_name + ".py")
+                                package_location = os.path.join(dist.location, package_name + ".py")
+                                package_dest = os.path.join(eggs_ddir, package_name + ".py")
+                                if os.path.exists(package_location):
+                                    pythonpath += copy_package(package_location, package_dest, package_name)
 
                                 # check for native libs
-                                # XXX - this should use native_libs from above
-                                if not os.path.exists(package_location):
-                                    package_location = os.path.join(dist.location, package_name + ".so")
-                                    package_dest = os.path.join(eggs_ddir, package_name + ".so")
-
-                                if not os.path.exists(package_location):
-                                    package_location = os.path.join(dist.location, package_name + ".dll")
-                                    package_dest = os.path.join(eggs_ddir, package_name + ".dll")
-
-                                if not os.path.exists(package_location):
-                                    self.logger.warn("WARNING: while processing egg '%s': package '%s' not found. Skipping." % (project_name, package_name))
-                                    continue
-
-                                if not os.path.exists(package_dest):
-                                    self._log('...... copying package %s' % (package_name))
-                                    if os.path.isdir(package_location):
-                                        shutil.copytree(package_location, package_dest)
-                                    else:
-                                        shutil.copy(package_location, package_dest)
-                                    
-                                    # Add this package to the python path                                        
-                                    d = os.path.join(self.site_packages_rel_dir, package_name)
-                                    pythonpath += [d]
+                                package_location = os.path.join(dist.location, package_name + ".so")
+                                package_dest = os.path.join(eggs_ddir, package_name + ".so")
+                                if os.path.exists(package_location):
+                                    pythonpath += copy_package(package_location, package_dest, package_name)
+                                
+                                package_location = os.path.join(dist.location, package_name + ".dll")
+                                package_dest = os.path.join(eggs_ddir, package_name + ".dll")
+                                if os.path.exists(package_location):
+                                    pythonpath += copy_package(package_location, package_dest, package_name)
                             else:
                                 b = os.path.basename(dist.location)
                                 full_dir = os.path.join(eggs_ddir, b)
