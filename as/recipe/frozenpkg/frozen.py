@@ -456,10 +456,14 @@ class Frozen(object):
 
                                 if not os.path.exists(package_dest):
                                     self._log('...... copying package %s' % (package_name))
-                                    shutil.copytree(package_location, package_dest)
-
+                                    if os.path.isdir(package_location):
+                                        shutil.copytree(package_location, package_dest)
+                                        d = os.path.join(self.site_packages_rel_dir, package_name)
+                                    else:
+                                        shutil.copy(package_location, package_dest)
+                                        d = self.site_packages_rel_dir
+                                        
                                     # Add this package to the python path
-                                    d = os.path.join(self.site_packages_rel_dir, package_name)
                                     pythonpath += [d]
                             else:
                                 b = os.path.basename(dist.location)
