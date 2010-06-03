@@ -336,27 +336,19 @@ class Frozen(object):
 
         # copy the site libs
         site_lib_sdir = os.path.abspath(venv_lib_sdir + '/site-packages')
-        if os.path.exists(site_lib_sdir):
-            site_lib_ddir = os.path.abspath(lib_ddir + '/site-packages')
-            rel_site_lib_ddir = site_lib_ddir.replace(root_dir, "")
+        site_lib_ddir = os.path.abspath(lib_ddir + '/site-packages')
 
+        if not os.path.exists(site_lib_ddir):
+            os.makedirs(site_lib_ddir)
+
+        rel_site_lib_ddir = site_lib_ddir.replace(root_dir, "")
+
+        if os.path.exists(site_lib_sdir):
             shutil.copytree(site_lib_sdir, site_lib_ddir)
 
-            # save the "site-packages" directory
-            self.site_packages_rel_dir = rel_site_lib_ddir
-            self.site_packages_full_dir = site_lib_ddir
-
-
-        # here comes a really DIRTY HACK !!!
-        # in order to put the new library in front of the PYTHONPATH, we
-        # replace "sys.path[0:0] = [" by the same string PLUS the new
-        # library path...
-        base_string = "sys.path[0:0] = ["
-        new_base_string = base_string + "\n" + \
-                          "  '" + rel_lib_ddir + "',\n" + \
-                          "  '" + rel_lib_ddir + "/lib-dynload" + "',\n" + \
-                          "  '" + rel_site_lib_ddir + "',"
-
+        # save the "site-packages" directory
+        self.site_packages_rel_dir = rel_site_lib_ddir
+        self.site_packages_full_dir = site_lib_ddir
 
         return pythonpath
 
@@ -432,7 +424,7 @@ class Frozen(object):
                             shutil.copytree(package_location, package_dest)
                         else:
                             shutil.copy(package_location, package_dest)
-                                    
+
                         # Add this package to the python path                                        
                         d = os.path.join(self.site_packages_rel_dir, package_name)
                         return [d]
@@ -459,7 +451,7 @@ class Frozen(object):
                                 package_dest = os.path.join(eggs_ddir, package_name + ".so")
                                 if os.path.exists(package_location):
                                     pythonpath += copy_package(package_location, package_dest, package_name)
-                                
+
                                 package_location = os.path.join(dist.location, package_name + ".dll")
                                 package_dest = os.path.join(eggs_ddir, package_name + ".dll")
                                 if os.path.exists(package_location):
@@ -537,10 +529,11 @@ class Frozen(object):
         buildroot = os.path.normpath(root_dir + "/" + install_prefix)
 
         # copy the activate_this.py file
-        self._log("Copying activate_this.py")
         activate_this_src = os.path.join(self.buildout['buildout']['bin-directory'], "activate_this.py")
-        activate_this_dst = os.path.normpath(buildroot + "/bin/activate_this.py")
-        shutil.copy(activate_this_src, activate_this_dst)
+        if os.path.exists(activate_this_src):
+            self._log("Copying activate_this.py")
+            activate_this_dst = os.path.normpath(buildroot + "/bin/activate_this.py")
+            shutil.copy(activate_this_src, activate_this_dst)
 
         return pythonpath
 
