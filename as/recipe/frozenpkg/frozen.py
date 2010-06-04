@@ -338,13 +338,12 @@ class Frozen(object):
         site_lib_sdir = os.path.abspath(venv_lib_sdir + '/site-packages')
         site_lib_ddir = os.path.abspath(lib_ddir + '/site-packages')
 
-        if not os.path.exists(site_lib_ddir):
-            os.makedirs(site_lib_ddir)
-
         rel_site_lib_ddir = site_lib_ddir.replace(root_dir, "")
 
         if os.path.exists(site_lib_sdir):
             shutil.copytree(site_lib_sdir, site_lib_ddir)
+        else:
+            os.makedirs(site_lib_ddir)
 
         # save the "site-packages" directory
         self.site_packages_rel_dir = rel_site_lib_ddir
