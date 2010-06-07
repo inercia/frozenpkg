@@ -21,7 +21,11 @@ SKIP_SYS_DIRS = [
     'dist-packages'
 ]
 
-
+# list of eggs that will always be copied to the tgz, rpm, etc...
+COMMON_EGGS = [
+    'pip',
+    'setuptools'
+]
 
 ####################################################################################################
 
@@ -76,7 +80,9 @@ class Frozen(object):
         self.buildout = buildout
         self.logger = logging.getLogger(self.name)
 
-        self.options["relative-paths"] = "true"
+        # patch some options
+        self.options["relative-paths"]    = "true"
+        self.options["eggs"]             += "\n" + "\n".join(COMMON_EGGS)
 
         self.egg = zc.recipe.egg.Egg(buildout, options['recipe'], options)
 
@@ -334,16 +340,13 @@ class Frozen(object):
             self._log('ERROR: when copying %s' % lib_sdir)
             print e
 
-        # copy the site libs
-        site_lib_sdir = os.path.abspath(venv_lib_sdir + '/site-packages')
-        site_lib_ddir = os.path.abspath(lib_ddir + '/site-packages')
-
+        # create the site libs
+        site_lib_sdir     = os.path.abspath(venv_lib_sdir + '/site-packages')
+        site_lib_ddir     = os.path.abspath(lib_ddir + '/site-packages')
         rel_site_lib_ddir = site_lib_ddir.replace(root_dir, "")
 
-        if os.path.exists(site_lib_sdir):
-            shutil.copytree(site_lib_sdir, site_lib_ddir)
-        else:
-            os.makedirs(site_lib_ddir)
+        self._log('Creating site-packages directory...')
+        os.makedirs(site_lib_ddir)
 
         # save the "site-packages" directory
         self.site_packages_rel_dir = rel_site_lib_ddir
