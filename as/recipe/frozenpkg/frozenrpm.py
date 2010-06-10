@@ -55,6 +55,8 @@ AutoReqProv:          @PKG_AUTODEPS@
 The @PKG_NAME@ package.
 @PKG_LICENSE@
 
+@SCRIPTS@
+
 %files
 
 %defattr(-, nobody, nobody, 0755)
@@ -118,6 +120,18 @@ class FrozenRPM(Frozen):
         rpmspec = rpmspec.replace("@BUILD_ROOT@", buildroot_topdir)
         rpmspec = rpmspec.replace("@ADDITIONAL_OPS@", "\n".join(additional_ops))
 
+
+        # determine if we must run any pre/post commands
+        scripts = ""
+        pre_cmds = self.options.get('pre-install', None)
+        if pre_cmds:
+            scripts += "%pre\n" + pre_cmds.strip() + "\n\n"
+
+        post_cmds = self.options.get('post-install', None)
+        if post_cmds:
+            scripts += "%post\n" + post_cmds.strip() + "\n\n"
+
+        rpmspec = rpmspec.replace("@SCRIPTS@", scripts)
 
         # create the spec file
         os.makedirs(buildroot_topdir)

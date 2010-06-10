@@ -68,6 +68,12 @@ scripts
 extra-copies
     Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
 
+pre-install
+    Shell commands to run before installing the RPM
+    
+post-install
+    Shell commands to run after installing the RPM
+       
 
 Example
 =======
@@ -95,7 +101,12 @@ Example
                          /usr/lib/libpython*          ->   lib/
                          /usr/local/lib/mylib.so      ->   lib/
                          /usr/local/lib/myextras*.so  ->   lib/
-
+        pre-install    =
+                         echo "Installing at ${buildout:pkg-prefix}"
+                         
+        post-install   =
+                         echo "Installed at ${buildout:pkg-prefix}"
+                                                  
         debug          = yes
 
 
@@ -112,7 +123,7 @@ setup(
     name = "as.recipe.frozenpkg",
     description = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
     long_description = long_description,
-    version = '0.2.11',
+    version = '0.2.12',
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
