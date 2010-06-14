@@ -123,7 +123,7 @@ setup(
     name = "as.recipe.frozenpkg",
     description = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
     long_description = long_description,
-    version = '0.2.12',
+    version = '0.2.13',
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [

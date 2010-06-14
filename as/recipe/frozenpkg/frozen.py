@@ -16,6 +16,10 @@ import zc.buildout
 import zc.recipe.egg
 
 
+# inter-file separator
+IFS = "/"
+
+# skip some files
 SKIP_SYS_DIRS = [
     'site-packages',
     'dist-packages'
@@ -511,6 +515,12 @@ class Frozen(object):
                     if os.path.isdir(src_el):
                         shutil.copytree(src_el, full_path_dest)
                     else:
+                        # maybe the destination is a directory: then we have to
+                        # create it at the target too...
+                        if dest.endswith(IFS) and not os.path.exists(full_path_dest):
+                            self._log('... creating %s directory' % dest)
+                            os.makedirs(full_path_dest)
+                            
                         shutil.copy(src_el, full_path_dest)
 
                 except Exception, e:
