@@ -16,50 +16,50 @@ This recipe is EXPERIMENTAL and quite unstable, so use at your own risk...
 Options
 =======
 
-pkg-name
-    Mandatory. The package name.
+        pkg-name
+            Mandatory. The package name.
 
-pkg-version
-    The package version.
+        pkg-version
+            The package version.
 
-pkg-vendor
-    The package vendor.
+        pkg-vendor
+            The package vendor.
 
-pkg-packager
-    The packager.
+        pkg-packager
+            The packager.
 
-pkg-url
-    The package URL.
+        pkg-url
+            The package URL.
 
-pkg-license
-    The license.
+        pkg-license
+            The license.
 
-pkg-deps
-    Package dependencies. It must be a space-separated list of RPM packages.
+        pkg-deps
+            Package dependencies. It must be a space-separated list of RPM packages.
 
-install-prefix
-    The installation prefix. Default: /opt/pkg-name
+        install-prefix
+            The installation prefix. Default: /opt/pkg-name
 
-eggs
-    The list of eggs that must be copied to the RPM package.
+        eggs
+            The list of eggs that must be copied to the RPM package.
 
-python-version
-    The python version that will be copied to the package.
+        python-version
+            The python version that will be copied to the package.
 
-sys-dir
-   The system libraries directory. Default: the lib directory in the virtualenv (if present)
+        sys-dir
+           The system libraries directory. Default: the lib directory in the virtualenv (if present)
 
-scripts
-    The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
+        scripts
+            The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
 
-extra-copies
-    Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
+        extra-copies
+            Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
 
-pre-install
-    Shell commands to run before installing the RPM
+        pre-install
+            Shell commands to run before installing the RPM
 
-post-install
-    Shell commands to run after installing the RPM
+        post-install
+            Shell commands to run after installing the RPM
 
 
 Example
