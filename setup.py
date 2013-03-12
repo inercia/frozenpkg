@@ -53,25 +53,16 @@ install-prefix
 eggs
     The list of eggs that must be copied to the RPM package.
 
-python-version
-    The python version that will be copied to the package.
-
-sys-python
-    The python binary that we should copy to the package. Default: the python in the virtualenv.
-
-sys-lib
-   The system libraries directory. Default: the library of the sys-python when provided, or the lib directory in the virtualenv otherwise.
-
 scripts
     The scripts from the bin directory that will be copied to the package. These scripts will have their paths relocated to the installation prefix.
 
 extra-copies
     Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
 
-pre-install
+pkg-pre-install
     Shell commands to run before installing the RPM
     
-post-install
+pkg-post-install
     Shell commands to run after installing the RPM
        
 
@@ -98,13 +89,12 @@ Example
                          testapp
 
         extra-copies   =
-                         /usr/lib/libpython*          ->   lib/
                          /usr/local/lib/mylib.so      ->   lib/
                          /usr/local/lib/myextras*.so  ->   lib/
-        pre-install    =
+        pkg-pre-install =
                          echo "Installing at ${buildout:pkg-prefix}"
                          
-        post-install   =
+        pkg-post-install =
                          echo "Installed at ${buildout:pkg-prefix}"
                                                   
         debug          = yes
@@ -141,10 +131,7 @@ setup(
     namespace_packages = ['as', 'as.recipe'],
     include_package_data = True,
     install_requires = [
-        'setuptools',
-        'zc.buildout',
-        'zc.recipe.egg'
-        # -*- Extra requirements: -*-
+        'distribute',
     ],
 
     license = 'GPL',

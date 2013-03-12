@@ -1,5 +1,3 @@
-
-
 import logging
 import os
 import sys
@@ -15,11 +13,8 @@ import subprocess
 from frozen import Frozen
 
 
-
 class FrozenTgz(Frozen):
-
-
-    def install(self):
+    def install (self):
         """
         Create a RPM
         """
@@ -68,6 +63,6 @@ class FrozenTgz(Frozen):
 
         return result_tgzs
 
-    def update(self):
+    def update (self):
         pass
 

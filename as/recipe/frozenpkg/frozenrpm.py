@@ -1,19 +1,18 @@
 
 
-import logging
 import os
 import sys
 import shutil
 import tempfile
-
-import zc.buildout
 import glob
 import fnmatch
-
 import subprocess
 
-
 from frozen import Frozen
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -34,8 +33,8 @@ RPM_SPEC_TEMPLATE = """
 # define _arch          SOMEARCH
 # define _cpu           SOMECPU
 
-%define _unpackaged_files_terminate_build   0
-%define __prelink_undo_cmd
+%define _unpackaged_files_terminate_build       0
+%define __prelink_undo_cmd                      /bin/true
 
 Name:                 @PKG_NAME@
 Version:              @PKG_VERSION@
@@ -71,7 +70,23 @@ The @PKG_NAME@ package.
 
 class FrozenRPM(Frozen):
 
-    def install(self):
+
+    def _create_dirs(self, top_rpmbuild_dir):
+        """
+        Create all the top dirs
+        """
+        try:
+            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "BUILDROOT")))
+            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "RPMS")))
+            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "SOURCES")))
+            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "SPECS")))
+            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "SRPMS")))
+        except:
+            logger.critical('could not create directoies in %s' % top_rpmbuild_dir)
+            shutil.rmtree(top_rpmbuild_dir, ignore_errors = True)
+            sys.exit(1)
+
+    def install (self):
         """
         Create a RPM
         """
@@ -79,11 +94,7 @@ class FrozenRPM(Frozen):
 
         top_rpmbuild_dir = os.path.abspath(tempfile.mkdtemp(suffix = '', prefix = 'rpmbuild-'))
 
-        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/BUILDROOT"))
-        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/RPMS"))
-        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/SOURCES"))
-        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/SPECS"))
-        os.mkdir(os.path.abspath(top_rpmbuild_dir + "/SRPMS"))
+        self._create_dirs(top_rpmbuild_dir)
 
         pkg_name = self.options['pkg-name']
         pkg_version = self.options.get('pkg-version', '0.1')
@@ -99,11 +110,8 @@ class FrozenRPM(Frozen):
 
         self.install_prefix = self.options.get('install-prefix', os.path.join('opt', pkg_name))
 
-        buildroot_topdir = os.path.abspath(top_rpmbuild_dir + "/BUILDROOT/" + pkg_name)
-        buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
-
-        # get the python binary, the version and the library
-        self._setupPython(buildroot_projdir)
+        buildroot_topdir = os.path.abspath(os.path.join(top_rpmbuild_dir, "BUILDROOT", pkg_name))
+        buildroot_projdir = os.path.abspath(buildroot_topdir + self.install_prefix)
 
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
@@ -120,24 +128,29 @@ class FrozenRPM(Frozen):
         rpmspec = rpmspec.replace("@BUILD_ROOT@", buildroot_topdir)
         rpmspec = rpmspec.replace("@ADDITIONAL_OPS@", "\n".join(additional_ops))
 
-
         # determine if we must run any pre/post commands
         scripts = ""
-        pre_cmds = self.options.get('pre-install', None)
+        pre_cmds = self.options.get('pkg-pre-install', None)
         if pre_cmds:
             scripts += "%pre\n" + pre_cmds.strip() + "\n\n"
 
-        post_cmds = self.options.get('post-install', None)
+        post_cmds = self.options.get('pkg-post-install', None)
         if post_cmds:
             scripts += "%post\n" + post_cmds.strip() + "\n\n"
 
         rpmspec = rpmspec.replace("@SCRIPTS@", scripts)
 
-        # create the spec file
-        os.makedirs(buildroot_topdir)
-        spec_filename = os.path.abspath(buildroot_topdir + "/" + pkg_name + ".spec")
+        ## create the build directory
+        try:
+            os.makedirs(buildroot_projdir)
+            self._create_venv(buildroot_projdir)
+        except:
+            logger.critical('Could not create virtual environment at %s' % (buildroot_projdir))
+            raise
 
-        self._log('Using spec file %s' % (spec_filename))
+        ## save the spec file
+        spec_filename = os.path.abspath(os.path.join(buildroot_topdir, pkg_name) + ".spec")
+        logger.debug('Using spec file %s' % (spec_filename))
         spec_file = None
         try:
             spec_file = open(spec_filename, "w")
@@ -149,49 +162,48 @@ class FrozenRPM(Frozen):
         if spec_file:
             spec_file.close()
 
-        pythonpath = self._copyAll(buildroot_topdir)
-
-        # fix the copied scripts, by replacing some paths by the new installation paths
-        self._fixScripts(buildroot_projdir, pythonpath)
+        self._copy_eggs(buildroot_projdir)
+        self._copy_outputs(buildroot_projdir)
+        self._prepare_venv(buildroot_projdir)
 
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need
         # a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
-        tarfile = top_rpmbuild_dir + "/SOURCES/" + pkg_name + ".tar"
-        tarfile = self._createTar(buildroot_topdir, tarfile)
+        tar_filename = os.path.join(top_rpmbuild_dir, "SOURCES", pkg_name + ".tar")
+        tar_filename = self._create_tar(buildroot_topdir, tar_filename)
+
 
         # launch rpmbuild
-        rpmbuild = [
-                    "rpmbuild",
-                    "--buildroot", buildroot_topdir,
-                    "--define", "_topdir %s" % (top_rpmbuild_dir,),
-                    "-ta", tarfile,
-                ]
+        command = [
+            "rpmbuild",
+            "--buildroot", buildroot_topdir,
+            "--define",
+            "_topdir %s" % top_rpmbuild_dir,
+            "-ta", tar_filename,
+        ]
 
-        self._log('Launching "%s"' % (" ".join(rpmbuild)))
-        job = subprocess.Popen(rpmbuild,
-                               stdout = subprocess.PIPE,
-                               stderr = subprocess.STDOUT)
+        logger.debug('Launching "%s"' % ' '.join(command))
+        job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
         stdout, _ = job.communicate()
 
         if job.returncode != 0:
+            logger.critical('could not build the RPM')
             print stdout
             return []
 
-
         # now try to find the RPMs we have built
         result_rpms = []
-        for arch_dir in os.listdir(top_rpmbuild_dir + "/RPMS"):
-            full_arch_dir = os.path.abspath(top_rpmbuild_dir + "/RPMS/" + arch_dir)
+        for arch_dir in os.listdir(os.path.join(top_rpmbuild_dir, "RPMS")):
+            full_arch_dir = os.path.abspath(os.path.join(top_rpmbuild_dir, "RPMS", arch_dir))
             if os.path.isdir(full_arch_dir):
                 for rpm_file in os.listdir(full_arch_dir):
                     if fnmatch.fnmatch(rpm_file, "*.rpm"):
-                        full_rpm_file = os.path.abspath(full_arch_dir + "/" + rpm_file)
+                        full_rpm_file = os.path.abspath(os.path.join(full_arch_dir, rpm_file))
 
                         shutil.copy(full_rpm_file, self.buildout['buildout']['directory'])
 
-                        self._log('Built %s' % (rpm_file))
+                        logger.debug('Built %s' % (rpm_file))
                         result_rpms = result_rpms + [rpm_file]
 
         if not self.debug:
@@ -199,5 +211,5 @@ class FrozenRPM(Frozen):
 
         return result_rpms
 
-    def update(self):
+    def update (self):
         pass

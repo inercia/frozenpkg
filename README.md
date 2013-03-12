@@ -43,22 +43,16 @@ Options
         eggs
             The list of eggs that must be copied to the RPM package.
 
-        python-version
-            The python version that will be copied to the package.
-
-        sys-dir
-           The system libraries directory. Default: the lib directory in the virtualenv (if present)
-
         scripts
             The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
 
         extra-copies
             Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
 
-        pre-install
+        pkg-pre-install
             Shell commands to run before installing the RPM
 
-        post-install
+        pkg-post-install
             Shell commands to run after installing the RPM
 
 
@@ -79,8 +73,6 @@ Example
 
         eggs           = ${main:eggs}
 
-        python-version = 2.6
-        sys-dir        = /usr/lib/python2.6
         scripts        =
                          testapp
 
@@ -88,10 +80,10 @@ Example
                          /usr/local/lib/mylib.so      ->   lib/
                          /usr/local/lib/myextras*.so  ->   lib/
 
-        pre-install    =
+        pkg-pre-install    =
                  echo "Installing at ${buildout:pkg-prefix}"
 
-        post-install   =
+        pkg-post-install   =
                  echo "Installed at ${buildout:pkg-prefix}"
                          
         debug          = yes

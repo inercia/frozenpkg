@@ -14,3 +14,5 @@ clean:
 	
 distclean: clean
 	rm -rf bin develop-eggs eggs parts
+	rm -f `find . -name '*.pyc'`
+
