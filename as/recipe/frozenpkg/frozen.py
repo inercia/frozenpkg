@@ -5,14 +5,20 @@ import sys
 import shutil
 import logging
 import glob
-
+import re
+import pkg_resources
 import subprocess
 
 
 
-import logging
 logger = logging.getLogger(__name__)
 
+
+
+#: list of regular expressions for eggs that we will not copy
+SKIP_EGGS = [
+    'zc.recipe.egg-.*',
+]
 
 
 ################################################################################
@@ -72,23 +78,43 @@ class Frozen(object):
         Copy all the required eggs to the virtualenv
         """
         bin_dir = os.path.join(root_dir, 'bin')
-
         easy_install = os.path.join(bin_dir, 'easy_install')
         if not os.path.exists(easy_install):
             logger.critical('could not find easy_install at %s' % easy_install )
             sys.exit(1)
 
-        logger.debug('Copying eggs')
-        eggs_dir = os.path.join(self.buildout['buildout']['directory'], 'eggs')
-        for egg in glob.glob(os.path.join(eggs_dir, '*.egg')):
-            logger.debug('... copying "%s"' % egg)
-            command = [easy_install, '--no-deps', egg]
-            job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-            stdout, _ = job.communicate()
+        distributions = [
+            r.strip()
+            for r in self.options.get('eggs', self.name).split('\n')
+            if r.strip()]
 
-            if job.returncode != 0:
-                logger.critical('could run easy_install: %s' % stdout)
-                raise Exception(stdout)
+        import zc.buildout.easy_install
+        ws = zc.buildout.easy_install.working_set(
+                distributions,
+                [self.buildout['buildout']['develop-eggs-directory'], self.buildout['buildout']['eggs-directory']]
+                )
+
+        for dist in ws:
+            if any([re.match(pattern, dist.location) for pattern in SKIP_EGGS]):
+                ## skip the eggs in SKIP_EGGS
+                logger.debug('... skipping "%s"' % dist.location)
+            else:
+                logger.debug('... installing "%s" from "%s"' % (dist.key, dist.location))
+
+                command = [easy_install, '--no-deps', dist.location]
+                job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+                stdout, _ = job.communicate()
+
+                if job.returncode != 0:
+                    logger.debug('...... retrying with easy_install')
+                    command = [easy_install, "%s==%s" % (dist.key, dist.version)]
+                    job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+                    stdout, _ = job.communicate()
+
+                    if job.returncode != 0:
+                        logger.critical('could run easy_install: %s' % stdout)
+                        raise Exception(stdout)
+
 
     def _copy_outputs(self, root_dir):
         """
