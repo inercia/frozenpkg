@@ -14,6 +14,8 @@ upload: build
 	@echo 'Uploading file... (settings from ~/.pydistutils.cfg)'
 	$(PYTHON) ./setup.py bdist_egg sdist upload
 
+publish: upload
+
 clean:
 	rm -rf dist build *.egg-info
 	
