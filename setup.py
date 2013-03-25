@@ -7,117 +7,13 @@ import os
 __VERSION__ = '0.2.18'
 
 
-#def read(*rnames):
-#    return open(os.path.join(os.path.dirname(__file__), *rnames), "r").read()
-
-
-long_description = """
-Introduction
-============
-
-This recipe enables you to freeze your buildout in a RPM, tgz's, etc.
-You can specify the package details, the installation prefix, and the eggs and
-scripts that must be copied to the package.
-
-Only RPM packing is currently implemented.
-
-This recipe is EXPERIMENTAL and quite unstable, so use at your own risk...
-
-.. contents::
-
-- PyPI page: http://pypi.python.org/pypi?:action=display&name=as.recipe.frozenpkg
-
-Options
-=======
-
-pkg-name
-    Mandatory. The package name.
-
-pkg-version
-    The package version.
-
-pkg-vendor
-    The package vendor.
-
-pkg-packager
-    The packager.
-
-pkg-url
-    The package URL.
-
-pkg-license
-    The license.
-
-pkg-deps
-    Package dependencies. It must be a space-separated list of RPM packages.
-
-install-prefix
-    The installation prefix. Default: /opt/pkg-name
-
-eggs
-    The list of eggs that must be copied to the RPM package.
-
-scripts
-    The scripts from the bin directory that will be copied to the package. These scripts will have their paths relocated to the installation prefix.
-
-extra-copies
-    Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
-
-pkg-pre-install
-    Shell commands to run before installing the RPM
-    
-pkg-post-install
-    Shell commands to run after installing the RPM
-       
-
-Example
-=======
-
-        [rpm]
-        recipe         = as.recipe.frozenpkg:rpm
-        pkg-name       = testapp
-        pkg-version    = 1.0
-        pkg-vendor     = The Vendor
-        pkg-packager   = My Company
-        pkg-url        = http://www.mycomp.com
-        pkg-license    = GPL
-        pkg-deps       = libevent
-
-        install-prefix = /opt/testapp
-
-        eggs           = ${buildout:eggs}
-
-        sys-python     = /usr/lib/python2.6
-
-        scripts        =
-                         testapp
-
-        extra-copies   =
-                         /usr/local/lib/mylib.so      ->   lib/
-                         /usr/local/lib/myextras*.so  ->   lib/
-        pkg-pre-install =
-                         echo "Installing at ${buildout:pkg-prefix}"
-                         
-        pkg-post-install =
-                         echo "Installed at ${buildout:pkg-prefix}"
-                                                  
-        debug          = yes
-
-
-Known Bugs
-==========
-
-- You must comment out the prelink_undo_cmd at /etc/rpm/macros.prelink, or the RPM generated will fail to install.
-
-"""
-
 
 
 setup(
-    name = "as.recipe.frozenpkg",
-    description = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
-    long_description = long_description,
-    version = __VERSION__,
+    name                = "as.recipe.frozenpkg",
+    description         = "ZC Buildout recipe for freezing buildouts in RPM's, tar.gz's, etc",
+    long_description    = open('README.md', 'rt').read(),
+    version             = __VERSION__,
 
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
@@ -128,11 +24,11 @@ setup(
         'License :: OSI Approved :: GNU General Public License (GPL)',
         ],
 
-    keywords = 'buildout recipe',
-    author = 'Alvaro Saurin',
-    author_email = 'name dot surname at gmail.com',
+    keywords        = 'buildout recipe',
+    author          = 'Alvaro Saurin',
+    author_email    = 'name dot surname at gmail.com',
 
-    packages = find_packages(exclude = ['ez_setup']),
+    packages        = find_packages(exclude = ['ez_setup']),
 
     namespace_packages = ['as',
                           'as.recipe'],
@@ -143,14 +39,15 @@ setup(
         'virtualenv',
     ],
 
-    license = 'GPL',
-    zip_safe = False,
-    entry_points = {
-        'zc.buildout': [
-            'default = as.recipe.frozenpkg:FrozenRPM',
+    license             = 'GPL',
+    zip_safe            = False,
 
+    entry_points        = {
+        'zc.buildout': [
+            'default = as.recipe.frozenpkg.frozenrpm:FrozenRPM',
             'rpm     = as.recipe.frozenpkg.frozenrpm:FrozenRPM',
             'tgz     = as.recipe.frozenpkg.frozentgz:FrozenTgz'
         ]
     },
 )
+

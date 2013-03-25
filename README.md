@@ -37,8 +37,14 @@ Options
         pkg-deps
             Package dependencies. It must be a space-separated list of RPM packages.
 
-        install-prefix
+        pkg-prefix
             The installation prefix. Default: /opt/pkg-name
+
+        pkg-pre-install
+            Shell commands to run before installing the RPM
+
+        pkg-post-install
+            Shell commands to run after installing the RPM
 
         eggs
             The list of eggs that must be copied to the RPM package.
@@ -46,14 +52,13 @@ Options
         scripts
             The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
 
+        extra-dirs
+            Any additional directories to create.
+
         extra-copies
             Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
 
-        pkg-pre-install
-            Shell commands to run before installing the RPM
 
-        pkg-post-install
-            Shell commands to run after installing the RPM
 
 
 Example
@@ -68,23 +73,21 @@ Example
         pkg-url        = http://www.mycomp.com
         pkg-license    = GPL
         pkg-deps       = libevent
+        pkg-prefix     = /opt/testapp
+        pkg-pre-install =
+                 echo "Installing at ${buildout:pkg-prefix}"
 
-        install-prefix = /opt/testapp
+        pkg-post-install =
+                 echo "Installed at ${buildout:pkg-prefix}"
 
         eggs           = ${main:eggs}
-
-        scripts        =
-                         testapp
 
         extra-copies   =
                          /usr/local/lib/mylib.so      ->   lib/
                          /usr/local/lib/myextras*.so  ->   lib/
 
-        pkg-pre-install    =
-                 echo "Installing at ${buildout:pkg-prefix}"
+        extra-dirs     =
+                         logs
 
-        pkg-post-install   =
-                 echo "Installed at ${buildout:pkg-prefix}"
-                         
         debug          = yes
 

@@ -26,10 +26,10 @@ class FrozenTgz(Frozen):
         pkg_name = self.options['pkg-name']
         pkg_version = self.options.get('pkg-version', '0.1')
 
-        self.install_prefix = self.options.get('install-prefix', os.path.join('opt', pkg_name))
+        self.pkg_prefix = self.options.get('pkg-prefix', os.path.join('opt', pkg_name))
 
         buildroot_topdir = os.path.abspath(top_tgzbuild_dir + "/PKG/" + pkg_name)
-        buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + self.install_prefix)
+        buildroot_projdir = os.path.abspath(buildroot_topdir + "/" + self.pkg_prefix)
         buildroot_tgzs = os.path.abspath(top_tgzbuild_dir + "/TGZ")
 
         # get the python binary, the version and the library

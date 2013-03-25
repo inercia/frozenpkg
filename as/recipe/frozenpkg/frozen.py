@@ -6,6 +6,7 @@ import shutil
 import logging
 import glob
 import re
+import tempfile
 import pkg_resources
 import subprocess
 
@@ -43,10 +44,44 @@ class Frozen(object):
         else:
             self.debug = False
 
+    def install(self):
+        """
+        Create a RPM
+        """
+        self.rpmbuild_dir = os.path.abspath(tempfile.mkdtemp(suffix = '', prefix = 'rpmbuild-'))
+
+        self.pkg_name = self.options['pkg-name']
+        self.pkg_version = self.options.get('pkg-version', '0.1')
+        self.pkg_vendor = self.options.get('pkg-vendor', 'unknown')
+        self.pkg_packager = self.options.get('pkg-packager', 'unknown')
+        self.pkg_url = self.options.get('pkg-url', 'unknown')
+        self.pkg_license = self.options.get('pkg-license', 'unknown')
+        self.pkg_group = self.options.get('pkg-group', 'unknown')
+        self.pkg_autodeps = self.options.get('pkg-autodeps', 'no')
+        self.pkg_prefix = self.options.get('pkg-prefix', os.path.join('opt', self.pkg_name))
+
+        self.buildroot = os.path.abspath(os.path.join(self.rpmbuild_dir, "BUILDROOT", self.pkg_name))
+        self.virtualenv_dir = os.path.abspath(self.buildroot + self.pkg_prefix)
+
+        ## create the build directory
+        try:
+            if not os.path.exists(self.virtualenv_dir):
+                os.makedirs(self.virtualenv_dir)
+
+            self._create_venv()
+        except:
+            logger.critical('ERROR: could not create virtual environment at "%s".' % (self.virtualenv_dir))
+            raise
+
     ############################################################################
 
+    def _virtualenv_path(self, path):
+        """
+        Return a path inside the virtualenv
+        """
+        return os.path.normpath(os.path.abspath(self.virtualenv_dir + '/' + path))
 
-    def _create_venv(self, root_dir):
+    def _create_venv(self):
         """
         Create a virtualenv in a directory
         """
@@ -59,7 +94,7 @@ class Frozen(object):
             '--distribute',
             '--no-site-packages',
             '--clear',
-            root_dir,
+            self.virtualenv_dir,
             ]
 
         logger.info('Creating virtualenv by launching "%s".' % (" ".join(virtualenv)))
@@ -73,11 +108,11 @@ class Frozen(object):
             sys.exit(1)
 
 
-    def _copy_eggs (self, root_dir):
+    def _copy_eggs (self):
         """
         Copy all the required eggs to the virtualenv
         """
-        bin_dir = os.path.join(root_dir, 'bin')
+        bin_dir = os.path.join(self.virtualenv_dir, 'bin')
         easy_install = os.path.join(bin_dir, 'easy_install')
         if not os.path.exists(easy_install):
             logger.critical('could NOT find easy_install at %s' % easy_install )
@@ -130,10 +165,10 @@ class Frozen(object):
                         raise UserError(stdout)
 
 
-    def _copy_outputs(self, root_dir):
+    def _copy_outputs(self):
         """
         Copies the outputs from parts
-        :param root_dir: the root directory where to copy things
+        :param self.virtualenv_dir: the root directory where to copy things
         """
         logger.info('Copying outputs.')
         buildout_dir = self.buildout['buildout']['directory']
@@ -142,7 +177,7 @@ class Frozen(object):
                 outputs = self.buildout[part]['output']
                 for output in outputs.splitlines():
                     rel_dir = os.path.relpath(output, buildout_dir)
-                    dest_dir = os.path.join(root_dir, os.path.dirname(rel_dir))
+                    dest_dir = self._virtualenv_path(os.path.dirname(rel_dir))
 
                     logger.debug('... "%s" -> "%s"' % (rel_dir, dest_dir))
                     if not os.path.exists(dest_dir):
@@ -153,17 +188,14 @@ class Frozen(object):
                 pass
 
 
-    def _copy_extra_files (self, root_dir, install_prefix):
+    def _copy_extra_files (self):
         """
         Copy any extra files, from the 'extra' options in the buildout
-        :param root_dir: the root directory where to copy things
+        :param self.virtualenv_dir: the root directory where to copy things
         """
-        assert (root_dir != None and len(root_dir) > 0)
-        assert (install_prefix != None and len(install_prefix) > 0)
+        assert (self.virtualenv_dir != None and len(self.virtualenv_dir) > 0)
+        assert (self.pkg_prefix != None and len(self.pkg_prefix) > 0)
 
-        pythonpath = []
-
-        buildroot = os.path.normpath(os.path.join(root_dir, install_prefix))
         buildout_dir = self.buildout['buildout']['directory']
 
         extra_copies = [
@@ -177,12 +209,12 @@ class Frozen(object):
                 src, dest = [b.strip() for b in copy_line.split("->")]
             except Exception, e:
                 print "ERROR: malformed copy specification", e
-                return pythonpath
+                return
 
             if not os.path.isabs(src):
                 src = os.path.join(buildout_dir, src)
 
-            full_path_dest = os.path.normpath(os.path.join(buildroot, dest))
+            full_path_dest = os.path.normpath(self._virtualenv_path(dest))
             for src_el in glob.glob(src):
                 logger.debug('... copying "%s".' % src_el)
                 try:
@@ -198,12 +230,38 @@ class Frozen(object):
                         shutil.copy(src_el, full_path_dest)
 
                 except Exception, e:
-                    logger.debug('ERROR: when copying "%s" to "%s"' % (src_el, full_path_dest))
-
-        return pythonpath
+                    logger.critical('ERROR: when copying "%s" to "%s"' % (src_el, full_path_dest))
 
 
-    def _prepare_venv(self, root_dir):
+    def _create_extra_dirs (self):
+        """
+        Create any extra dirs
+        :param self.virtualenv_dir: the root directory where to copy things
+        """
+        assert (self.virtualenv_dir != None and len(self.virtualenv_dir) > 0)
+
+        extra_dirs_str = self.options.get('extra-dirs', None)
+        if extra_dirs_str:
+            logger.info('Creating extras directories.')
+            for directory in [r.strip() for r in extra_dirs_str.split('\n') if r.strip()]:
+
+                full_path_dest = self._virtualenv_path(directory)
+                if not os.path.exists(full_path_dest):
+                    try:
+                        logger.debug('... creating "%s".' % full_path_dest)
+                        os.makedirs(full_path_dest)
+                    except Exception, e:
+                        msg = 'ERROR: when creating "%s" to "%s"' % (full_path_dest, str(e))
+                        logger.critical(msg)
+                        raise Exception(msg)
+
+                elif not os.path.isdir(full_path_dest):
+                    msg = 'ERROR: "%s" exists but is not a directory'
+                    logger.critical(msg)
+                    raise Exception(msg)
+
+
+    def _prepare_venv(self):
         """
         Finish the virtualenv by making it relocatable and removing some extra things we do not need...
         """
@@ -211,7 +269,7 @@ class Frozen(object):
         virtualenv = [
             'virtualenv',
             '--relocatable',
-            root_dir,
+            self.virtualenv_dir,
             ]
 
         logger.info('Making virtualenv relocatable with "%s".' % (" ".join(virtualenv)))
@@ -221,32 +279,36 @@ class Frozen(object):
         stdout, _ = job.communicate()
 
         if job.returncode != 0:
-            logger.critical('could not run virtualenv')
+            logger.critical('ERROR: could not run "virtualenv".')
             sys.exit(1)
 
-        local_dir = os.path.join(root_dir, "local")
-        logger.debug('Removing "%s".' % local_dir)
-        shutil.rmtree(local_dir)
+        local_dir = os.path.join(self.virtualenv_dir, "local")
+        if os.path.exists(local_dir):
+            logger.debug('Removing "%s".' % local_dir)
+            shutil.rmtree(local_dir)
 
 
-    def _create_tar (self, root_dir, filename, compress = False):
+    def _create_tar (self, filename, compress = False):
         """
         Create a tar file from the virtualenv
         """
-        logger.info('Creating tar file.')
+        logger.info('Creating tar file from the virtualenv.')
         import tarfile
         with tarfile.open(filename, 'w' if not compress else 'w:gz', dereference = True) as t:
-            for name in glob.glob(os.path.join(root_dir, '*')):
-                rel_name = '/' + os.path.relpath(name, root_dir)
+            for name in glob.glob(os.path.join(self.buildroot, '*')):
+                rel_name = '/' + os.path.relpath(name, self.buildroot)
                 t.add(name, arcname = rel_name)
 
         if compress:
-            return os.path.join(filename + ".gz")
+            output = os.path.join(filename + ".gz")
         else:
-            return filename
+            output = filename
+
+        logger.debug('... output: %s.' % output)
+        return output
 
 
-################################################################################
+    ################################################################################
 
 if __name__ == '__main__':
     f = Frozen()

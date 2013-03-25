@@ -9,8 +9,11 @@ bin/buildout:
 build: bin/buildout
 	bin/buildout -v -v
 
-distclean:
-	rm -rf bin build develop-eggs eggs parts temp
+
+clean:
+	rm -rf bin build parts temp
 	rm -rf *.tar.gz *.rpm *.egg-info
 
-clean: distclean	
+distclean:
+	rm -rf eggs develop-eggs
+	

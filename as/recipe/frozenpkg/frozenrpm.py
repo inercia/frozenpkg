@@ -70,62 +70,32 @@ The @PKG_NAME@ package.
 
 class FrozenRPM(Frozen):
 
-
-    def _create_dirs(self, top_rpmbuild_dir):
-        """
-        Create all the top dirs
-        """
-        try:
-            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "BUILDROOT")))
-            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "RPMS")))
-            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "SOURCES")))
-            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "SPECS")))
-            os.mkdir(os.path.abspath(os.path.join(top_rpmbuild_dir, "SRPMS")))
-        except:
-            logger.critical('could not create directoies in %s' % top_rpmbuild_dir)
-            shutil.rmtree(top_rpmbuild_dir, ignore_errors = True)
-            sys.exit(1)
-
     def install (self):
         """
         Create a RPM
         """
+
+        super(FrozenRPM, self).install()
+
+        self._create_rpm_dirs()
+
         additional_ops = []
-
-        top_rpmbuild_dir = os.path.abspath(tempfile.mkdtemp(suffix = '', prefix = 'rpmbuild-'))
-
-        self._create_dirs(top_rpmbuild_dir)
-
-        pkg_name = self.options['pkg-name']
-        pkg_version = self.options.get('pkg-version', '0.1')
-        pkg_vendor = self.options.get('pkg-vendor', 'unknown')
-        pkg_packager = self.options.get('pkg-packager', 'unknown')
-        pkg_url = self.options.get('pkg-url', 'unknown')
-        pkg_license = self.options.get('pkg-license', 'unknown')
-        pkg_group = self.options.get('pkg-group', 'unknown')
-        pkg_autodeps = self.options.get('pkg-autodeps', 'no')
-
         if self.options.has_key('pkg-deps'):
             additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
 
-        self.install_prefix = self.options.get('install-prefix', os.path.join('opt', pkg_name))
-
-        buildroot_topdir = os.path.abspath(os.path.join(top_rpmbuild_dir, "BUILDROOT", pkg_name))
-        buildroot_projdir = os.path.abspath(buildroot_topdir + self.install_prefix)
-
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
-        rpmspec = rpmspec.replace("@TOP_DIR@", top_rpmbuild_dir)
-        rpmspec = rpmspec.replace("@PKG_NAME@", pkg_name)
-        rpmspec = rpmspec.replace("@PKG_VENDOR@", pkg_vendor)
-        rpmspec = rpmspec.replace("@PKG_VERSION@", pkg_version)
-        rpmspec = rpmspec.replace("@PKG_PACKAGER@", pkg_packager)
-        rpmspec = rpmspec.replace("@PKG_URL@", pkg_url)
-        rpmspec = rpmspec.replace("@PKG_LICENSE@", pkg_license)
-        rpmspec = rpmspec.replace("@PKG_GROUP@", pkg_group)
-        rpmspec = rpmspec.replace("@PKG_AUTODEPS@", pkg_autodeps)
-        rpmspec = rpmspec.replace("@INSTALL_PREFIX@", self.install_prefix)
-        rpmspec = rpmspec.replace("@BUILD_ROOT@", buildroot_topdir)
+        rpmspec = rpmspec.replace("@TOP_DIR@", self.rpmbuild_dir)
+        rpmspec = rpmspec.replace("@PKG_NAME@", self.pkg_name)
+        rpmspec = rpmspec.replace("@PKG_VENDOR@", self.pkg_vendor)
+        rpmspec = rpmspec.replace("@PKG_VERSION@", self.pkg_version)
+        rpmspec = rpmspec.replace("@PKG_PACKAGER@", self.pkg_packager)
+        rpmspec = rpmspec.replace("@PKG_URL@", self.pkg_url)
+        rpmspec = rpmspec.replace("@PKG_LICENSE@", self.pkg_license)
+        rpmspec = rpmspec.replace("@PKG_GROUP@", self.pkg_group)
+        rpmspec = rpmspec.replace("@PKG_AUTODEPS@", self.pkg_autodeps)
+        rpmspec = rpmspec.replace("@INSTALL_PREFIX@", self.pkg_prefix)
+        rpmspec = rpmspec.replace("@BUILD_ROOT@", self.buildroot)
         rpmspec = rpmspec.replace("@ADDITIONAL_OPS@", "\n".join(additional_ops))
 
         # determine if we must run any pre/post commands
@@ -140,16 +110,8 @@ class FrozenRPM(Frozen):
 
         rpmspec = rpmspec.replace("@SCRIPTS@", scripts)
 
-        ## create the build directory
-        try:
-            os.makedirs(buildroot_projdir)
-            self._create_venv(buildroot_projdir)
-        except:
-            logger.critical('Could not create virtual environment at %s' % (buildroot_projdir))
-            raise
-
         ## save the spec file
-        spec_filename = os.path.abspath(os.path.join(buildroot_topdir, pkg_name) + ".spec")
+        spec_filename = os.path.abspath(os.path.join(self.buildroot, self.pkg_name) + ".spec")
         logger.debug('Using spec file %s' % (spec_filename))
         spec_file = None
         try:
@@ -162,23 +124,25 @@ class FrozenRPM(Frozen):
         if spec_file:
             spec_file.close()
 
-        self._copy_eggs(buildroot_projdir)
-        self._copy_outputs(buildroot_projdir)
-        self._prepare_venv(buildroot_projdir)
+        self._copy_eggs()
+        self._copy_outputs()
+        self._create_extra_dirs()
+        self._copy_extra_files()
+        self._prepare_venv()
 
         # create a tar file at SOURCES/.
         # we can pass a tar file to rpmbuild, so it is easier as we may need
         # a "tar" anyway.
         # the spec file should be inside the tar, at the top level...
-        tar_filename = os.path.join(top_rpmbuild_dir, "SOURCES", pkg_name + ".tar")
-        tar_filename = self._create_tar(buildroot_topdir, tar_filename)
+        tar_filename = os.path.join(self.rpmbuild_dir, "SOURCES", self.pkg_name + ".tar")
+        tar_filename = self._create_tar(tar_filename)
 
         # launch rpmbuild
         command = [
             "rpmbuild",
-            "--buildroot", buildroot_topdir,
+            "--buildroot", self.buildroot,
             "--define",
-            "_topdir %s" % top_rpmbuild_dir,
+            "_topdir %s" % self.rpmbuild_dir,
             "-ta", tar_filename,
         ]
 
@@ -193,8 +157,8 @@ class FrozenRPM(Frozen):
 
         # now try to find the RPMs we have built
         result_rpms = []
-        for arch_dir in os.listdir(os.path.join(top_rpmbuild_dir, "RPMS")):
-            full_arch_dir = os.path.abspath(os.path.join(top_rpmbuild_dir, "RPMS", arch_dir))
+        for arch_dir in os.listdir(os.path.join(self.rpmbuild_dir, "RPMS")):
+            full_arch_dir = os.path.abspath(os.path.join(self.rpmbuild_dir, "RPMS", arch_dir))
             if os.path.isdir(full_arch_dir):
                 for rpm_file in os.listdir(full_arch_dir):
                     if fnmatch.fnmatch(rpm_file, "*.rpm"):
@@ -206,9 +170,25 @@ class FrozenRPM(Frozen):
                         result_rpms = result_rpms + [rpm_file]
 
         if not self.debug:
-            shutil.rmtree(top_rpmbuild_dir)
+            shutil.rmtree(self.rpmbuild_dir)
 
         return result_rpms
+
+
+    def _create_rpm_dirs(self):
+        """
+        Create all the top dirs
+        """
+        for p in ["BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS"]:
+            full_p = os.path.join(self.rpmbuild_dir, p)
+            if not os.path.exists(full_p):
+                try:
+                    os.makedirs(full_p)
+                except:
+                    logger.critical('ERROR: could not create directory "%s"' % full_p)
+                    shutil.rmtree(self.rpmbuild_dir, ignore_errors = True)
+                    raise
+
 
     def update (self):
         pass
