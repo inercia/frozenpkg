@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 import os
 
 
-__VERSION__ = '0.2.18'
+__VERSION__ = '0.2.19'
 
 
 
