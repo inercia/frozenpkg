@@ -173,7 +173,6 @@ class FrozenRPM(Frozen):
         tar_filename = os.path.join(top_rpmbuild_dir, "SOURCES", pkg_name + ".tar")
         tar_filename = self._create_tar(buildroot_topdir, tar_filename)
 
-
         # launch rpmbuild
         command = [
             "rpmbuild",
@@ -183,12 +182,12 @@ class FrozenRPM(Frozen):
             "-ta", tar_filename,
         ]
 
-        logger.debug('Launching "%s"' % ' '.join(command))
+        logger.info('Launching "%s".' % ' '.join(command))
         job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
         stdout, _ = job.communicate()
 
         if job.returncode != 0:
-            logger.critical('could not build the RPM')
+            logger.critical('could not build the RPM.')
             print stdout
             return []
 

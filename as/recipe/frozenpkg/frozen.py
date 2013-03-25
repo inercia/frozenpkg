@@ -62,7 +62,7 @@ class Frozen(object):
             root_dir,
             ]
 
-        logger.debug('Launching "%s"' % (" ".join(virtualenv)))
+        logger.info('Creating virtualenv by launching "%s".' % (" ".join(virtualenv)))
         job = subprocess.Popen(virtualenv,
                                stdout = subprocess.PIPE,
                                stderr = subprocess.STDOUT)
@@ -94,6 +94,7 @@ class Frozen(object):
                 [self.buildout['buildout']['develop-eggs-directory'], self.buildout['buildout']['eggs-directory']]
                 )
 
+        logger.info('Installing eggs in virtualenv.')
         for dist in ws:
             if any([re.match(pattern, dist.location) for pattern in SKIP_EGGS]):
                 ## skip the eggs in SKIP_EGGS
@@ -134,6 +135,7 @@ class Frozen(object):
         Copies the outputs from parts
         :param root_dir: the root directory where to copy things
         """
+        logger.info('Copying outputs.')
         buildout_dir = self.buildout['buildout']['directory']
         for part in self.buildout['buildout']['parts'].split():
             try:
@@ -142,7 +144,7 @@ class Frozen(object):
                     rel_dir = os.path.relpath(output, buildout_dir)
                     dest_dir = os.path.join(root_dir, os.path.dirname(rel_dir))
 
-                    logger.debug('Copying %s -> %s' % (rel_dir, dest_dir))
+                    logger.debug('... "%s" -> "%s"' % (rel_dir, dest_dir))
                     if not os.path.exists(dest_dir):
                         os.makedirs(dest_dir)
                     shutil.copy2(output, dest_dir)
@@ -169,6 +171,7 @@ class Frozen(object):
             for r in self.options.get('extra-copies', self.name).split('\n')
             if r.strip()]
 
+        logger.info('Copying extras.')
         for copy_line in extra_copies:
             try:
                 src, dest = [b.strip() for b in copy_line.split("->")]
@@ -181,7 +184,7 @@ class Frozen(object):
 
             full_path_dest = os.path.normpath(os.path.join(buildroot, dest))
             for src_el in glob.glob(src):
-                logger.debug('Copying %s' % src_el)
+                logger.debug('... copying "%s".' % src_el)
                 try:
                     if os.path.isdir(src_el):
                         shutil.copytree(src_el, full_path_dest)
@@ -189,13 +192,13 @@ class Frozen(object):
                         # maybe the destination is a directory: then we have to
                         # create it at the target too...
                         if dest.endswith('/') and not os.path.exists(full_path_dest):
-                            logger.debug('... creating %s directory' % dest)
+                            logger.debug('... creating "%s" directory.' % dest)
                             os.makedirs(full_path_dest)
 
                         shutil.copy(src_el, full_path_dest)
 
                 except Exception, e:
-                    logger.debug('ERROR: when copying %s to %s' % (src_el, full_path_dest))
+                    logger.debug('ERROR: when copying "%s" to "%s"' % (src_el, full_path_dest))
 
         return pythonpath
 
@@ -211,7 +214,7 @@ class Frozen(object):
             root_dir,
             ]
 
-        logger.debug('Launching "%s"' % (" ".join(virtualenv)))
+        logger.info('Making virtualenv relocatable with "%s".' % (" ".join(virtualenv)))
         job = subprocess.Popen(virtualenv,
                                stdout = subprocess.PIPE,
                                stderr = subprocess.STDOUT)
@@ -222,7 +225,7 @@ class Frozen(object):
             sys.exit(1)
 
         local_dir = os.path.join(root_dir, "local")
-        logger.debug('Removing"%s"' % local_dir)
+        logger.debug('Removing "%s".' % local_dir)
         shutil.rmtree(local_dir)
 
 
@@ -230,6 +233,7 @@ class Frozen(object):
         """
         Create a tar file from the virtualenv
         """
+        logger.info('Creating tar file.')
         import tarfile
         with tarfile.open(filename, 'w' if not compress else 'w:gz', dereference = True) as t:
             for name in glob.glob(os.path.join(root_dir, '*')):
