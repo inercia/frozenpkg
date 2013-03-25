@@ -27,8 +27,8 @@ tmpeggs = tempfile.mkdtemp()
 
 ez = {}
 exec urllib2.urlopen('http://peak.telecommunity.com/dist/ez_setup.py'
-                     ).read() in ez
-ez['use_setuptools'](to_dir=tmpeggs, download_delay=0)
+).read() in ez
+ez['use_setuptools'](to_dir = tmpeggs, download_delay = 0)
 
 import pkg_resources
 
@@ -41,13 +41,14 @@ assert os.spawnle(
     os.P_WAIT, sys.executable, sys.executable,
     '-c', cmd, '-mqNxd', tmpeggs, 'zc.buildout',
     dict(os.environ,
-         PYTHONPATH=
+         PYTHONPATH =
          ws.find(pkg_resources.Requirement.parse('setuptools')).location
-         ),
-    ) == 0
+    ),
+) == 0
 
 ws.add_entry(tmpeggs)
 ws.require('zc.buildout')
 import zc.buildout.buildout
+
 zc.buildout.buildout.main(sys.argv[1:] + ['bootstrap'])
 shutil.rmtree(tmpeggs)

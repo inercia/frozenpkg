@@ -80,7 +80,7 @@ class Frozen(object):
         bin_dir = os.path.join(root_dir, 'bin')
         easy_install = os.path.join(bin_dir, 'easy_install')
         if not os.path.exists(easy_install):
-            logger.critical('could not find easy_install at %s' % easy_install )
+            logger.critical('could NOT find easy_install at %s' % easy_install )
             sys.exit(1)
 
         distributions = [
@@ -101,19 +101,32 @@ class Frozen(object):
             else:
                 logger.debug('... installing "%s" from "%s"' % (dist.key, dist.location))
 
-                command = [easy_install, '--no-deps', dist.location]
+                args = ['--no-deps']
+                try:
+                    find_links = [
+                            r.strip()
+                            for r in self.buildout['buildout']['find-links'].split('\n')
+                            if r.strip()]
+                    for l in find_links:
+                        args += ['--find-links', l]
+                except KeyError:
+                    logger.debug('... no addition find-links')
+
+                command = [easy_install] + args + [dist.location]
                 job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
                 stdout, _ = job.communicate()
 
                 if job.returncode != 0:
                     logger.debug('...... retrying with easy_install')
-                    command = [easy_install, "%s==%s" % (dist.key, dist.version)]
+                    command = [easy_install] + args + ["%s==%s" % (dist.key, dist.version)]
                     job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
                     stdout, _ = job.communicate()
 
                     if job.returncode != 0:
-                        logger.critical('could run easy_install: %s' % stdout)
-                        raise Exception(stdout)
+                        from zc.buildout import UserError
+                        msg = 'could NOT run easy_install: %s: %s' % (' '.join(command), stdout)
+                        logger.critical()
+                        raise UserError(stdout)
 
 
     def _copy_outputs(self, root_dir):
