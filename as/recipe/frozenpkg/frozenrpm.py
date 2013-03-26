@@ -60,11 +60,19 @@ The @PKG_NAME@ package.
 
 %defattr(-, nobody, nobody, 0755)
 
-@INSTALL_PREFIX@
+@PKG_PREFIX@
 
 # empty lines
 """
 
+#: directories needed in the rpm build top directory
+RPM_BUILD_DIRS = [
+    "BUILDROOT",
+    "RPMS",
+    "SOURCES",
+    "SPECS",
+    "SRPMS"
+]
 
 ###############################################################################
 
@@ -79,10 +87,6 @@ class FrozenRPM(Frozen):
 
         self._create_rpm_dirs()
 
-        additional_ops = []
-        if self.options.has_key('pkg-deps'):
-            additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
-
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
         rpmspec = rpmspec.replace("@TOP_DIR@", self.rpmbuild_dir)
@@ -94,8 +98,12 @@ class FrozenRPM(Frozen):
         rpmspec = rpmspec.replace("@PKG_LICENSE@", self.pkg_license)
         rpmspec = rpmspec.replace("@PKG_GROUP@", self.pkg_group)
         rpmspec = rpmspec.replace("@PKG_AUTODEPS@", self.pkg_autodeps)
-        rpmspec = rpmspec.replace("@INSTALL_PREFIX@", self.pkg_prefix)
+        rpmspec = rpmspec.replace("@PKG_PREFIX@", self.pkg_prefix)
         rpmspec = rpmspec.replace("@BUILD_ROOT@", self.buildroot)
+
+        additional_ops = []
+        if self.options.has_key('pkg-deps'):
+            additional_ops = additional_ops + ["Requires: " + self.options['pkg-deps']]
         rpmspec = rpmspec.replace("@ADDITIONAL_OPS@", "\n".join(additional_ops))
 
         # determine if we must run any pre/post commands
@@ -128,6 +136,7 @@ class FrozenRPM(Frozen):
         self._copy_outputs()
         self._create_extra_dirs()
         self._copy_extra_files()
+        self._extra_cleanups()
         self._prepare_venv()
 
         # create a tar file at SOURCES/.
@@ -179,7 +188,7 @@ class FrozenRPM(Frozen):
         """
         Create all the top dirs
         """
-        for p in ["BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS"]:
+        for p in RPM_BUILD_DIRS:
             full_p = os.path.join(self.rpmbuild_dir, p)
             if not os.path.exists(full_p):
                 try:

@@ -49,14 +49,20 @@ Options
         eggs
             The list of eggs that must be copied to the RPM package.
 
+        eggs-skip
+            A list of eggs to always skip when copying to the package.
+
         scripts
             The scripts that will be copied to the package. Tese scripts will have their paths relocated to the installation prefix.
 
         extra-dirs
-            Any additional directories to create.
+            Any additional directories to create in the package (ie, _"logs"_).
 
         extra-copies
             Any additional extra copies. They must be specified as "orig -> dest", where orig can be any valid glob expression, and dest must be a path relative to install-prefix.
+
+        extra-cleanups
+            Any additional files that must be removed in the package.
 
 
 
@@ -64,30 +70,40 @@ Options
 Example
 =======
 
+
         [rpm]
-        recipe         = as.recipe.frozenpkg:rpm
-        pkg-name       = testapp
-        pkg-version    = 1.0
-        pkg-vendor     = The Vendor
-        pkg-packager   = My Company
-        pkg-url        = http://www.mycomp.com
-        pkg-license    = GPL
-        pkg-deps       = libevent
-        pkg-prefix     = /opt/testapp
-        pkg-pre-install =
-                 echo "Installing at ${buildout:pkg-prefix}"
+        recipe           = as.recipe.frozenpkg:rpm
+        pkg-name         = testapp
+        pkg-version      = 1.0
+        pkg-vendor       = The Vendor
+        pkg-packager     = My Company
+        pkg-url          = http://www.mycomp.com
+        pkg-license      = GPL
+        pkg-deps         =
+                           libevent
+                           openssl
+        pkg-prefix       = /opt/testapp
+        pkg-pre-install  =
+                           echo "Installing at ${buildout:pkg-prefix}"
 
         pkg-post-install =
-                 echo "Installed at ${buildout:pkg-prefix}"
+                           echo "Installed at ${buildout:pkg-prefix}"
 
-        eggs           = ${main:eggs}
+        eggs             = ${main:eggs}
 
-        extra-copies   =
-                         /usr/local/lib/mylib.so      ->   lib/
-                         /usr/local/lib/myextras*.so  ->   lib/
-
-        extra-dirs     =
-                         logs
+        eggs-skip        =
+                           pip
+        extra-copies     =
+                           /usr/local/lib/mylib.so      ->   lib/
+                           /usr/local/lib/myextras*.so  ->   lib/
+                           conf/some-local-config.cfg   ->   conf/
+        extra-dirs       =
+                           logs
+                           var/run
+        extra-cleanups   =
+                           bin/activate.*
 
         debug          = yes
+
+
 

@@ -22,6 +22,10 @@ SKIP_EGGS = [
 ]
 
 
+
+def _lst_from_cfg(opt):
+    return [r.strip() for r in opt.split('\n') if r.strip()]
+
 ################################################################################
 
 class Frozen(object):
@@ -118,10 +122,7 @@ class Frozen(object):
             logger.critical('could NOT find easy_install at %s' % easy_install )
             sys.exit(1)
 
-        distributions = [
-            r.strip()
-            for r in self.options.get('eggs', self.name).split('\n')
-            if r.strip()]
+        distributions = _lst_from_cfg(self.options.get('eggs', self.name))
 
         import zc.buildout.easy_install
         ws = zc.buildout.easy_install.working_set(
@@ -131,38 +132,38 @@ class Frozen(object):
 
         logger.info('Installing eggs in virtualenv.')
         for dist in ws:
-            if any([re.match(pattern, dist.location) for pattern in SKIP_EGGS]):
-                ## skip the eggs in SKIP_EGGS
-                logger.debug('... skipping "%s"' % dist.location)
-            else:
-                logger.debug('... installing "%s" from "%s"' % (dist.key, dist.location))
 
-                args = ['--no-deps']
-                try:
-                    find_links = [
-                            r.strip()
-                            for r in self.buildout['buildout']['find-links'].split('\n')
-                            if r.strip()]
-                    for l in find_links:
-                        args += ['--find-links', l]
-                except KeyError:
-                    logger.debug('... no addition find-links')
+            ## check if we must skip this egg
+            skip_eggs = _lst_from_cfg(self.options.get('eggs-skip', '')) + list(SKIP_EGGS)
+            if dist.key in skip_eggs:
+                logger.debug('... skipping "%s"' % dist.key)
+                continue
 
-                command = [easy_install] + args + [dist.location]
+            logger.info('... installing "%s" from "%s"' % (dist.key, dist.location))
+
+            args = ['--no-deps']
+            try:
+                find_links = _lst_from_cfg(self.buildout['buildout']['find-links'])
+                for l in find_links:
+                    args += ['--find-links', l]
+            except KeyError:
+                logger.debug('... no additional find-links')
+
+            command = [easy_install] + args + [dist.location]
+            job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+            stdout, _ = job.communicate()
+
+            if job.returncode != 0:
+                logger.debug('...... retrying with easy_install')
+                command = [easy_install] + args + ["%s==%s" % (dist.key, dist.version)]
                 job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
                 stdout, _ = job.communicate()
 
                 if job.returncode != 0:
-                    logger.debug('...... retrying with easy_install')
-                    command = [easy_install] + args + ["%s==%s" % (dist.key, dist.version)]
-                    job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-                    stdout, _ = job.communicate()
-
-                    if job.returncode != 0:
-                        from zc.buildout import UserError
-                        msg = 'could NOT run easy_install: %s: %s' % (' '.join(command), stdout)
-                        logger.critical()
-                        raise UserError(stdout)
+                    from zc.buildout import UserError
+                    msg = 'could NOT run easy_install: %s: %s' % (' '.join(command), stdout)
+                    logger.critical()
+                    raise UserError(stdout)
 
 
     def _copy_outputs(self):
@@ -198,11 +199,7 @@ class Frozen(object):
 
         buildout_dir = self.buildout['buildout']['directory']
 
-        extra_copies = [
-            r.strip()
-            for r in self.options.get('extra-copies', self.name).split('\n')
-            if r.strip()]
-
+        extra_copies = _lst_from_cfg(self.options.get('extra-copies', self.name))
         logger.info('Copying extras.')
         for copy_line in extra_copies:
             try:
@@ -238,12 +235,12 @@ class Frozen(object):
         Create any extra dirs
         :param self.virtualenv_dir: the root directory where to copy things
         """
-        assert (self.virtualenv_dir != None and len(self.virtualenv_dir) > 0)
+        assert self.virtualenv_dir != None and len(self.virtualenv_dir) > 0
 
         extra_dirs_str = self.options.get('extra-dirs', None)
         if extra_dirs_str:
             logger.info('Creating extras directories.')
-            for directory in [r.strip() for r in extra_dirs_str.split('\n') if r.strip()]:
+            for directory in _lst_from_cfg(extra_dirs_str):
 
                 full_path_dest = self._virtualenv_path(directory)
                 if not os.path.exists(full_path_dest):
@@ -259,6 +256,25 @@ class Frozen(object):
                     msg = 'ERROR: "%s" exists but is not a directory'
                     logger.critical(msg)
                     raise Exception(msg)
+
+
+    def _extra_cleanups(self):
+        """
+        Some extra cleanups in the virtualenv...
+        """
+        extra_cleanups = self.options.get('extra-cleanups', None)
+        if extra_cleanups:
+            logger.debug('Performing extra cleanups.')
+            for cleanup_pattern in _lst_from_cfg(extra_cleanups):
+                for cleanup_file in glob.glob(self._virtualenv_path(cleanup_pattern)):
+                    logger.debug('... removing "%s".' % cleanup_file)
+                    if os.path.isdir(cleanup_file):
+                        shutil.rmtree(cleanup_file, ignore_errors = True)
+                    else:
+                        try:
+                            os.remove(cleanup_file)
+                        except IOError, e:
+                            logger.error('ERROR: could not remove "%s": %s' % (cleanup_file, str(e)))
 
 
     def _prepare_venv(self):
@@ -286,6 +302,7 @@ class Frozen(object):
         if os.path.exists(local_dir):
             logger.debug('Removing "%s".' % local_dir)
             shutil.rmtree(local_dir)
+
 
 
     def _create_tar (self, filename, compress = False):
