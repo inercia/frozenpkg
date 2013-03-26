@@ -56,6 +56,7 @@ class Frozen(object):
 
         self.pkg_name = self.options['pkg-name']
         self.pkg_version = self.options.get('pkg-version', '0.1')
+        self.pkg_release = self.options.get('pkg-release', '1')
         self.pkg_vendor = self.options.get('pkg-vendor', 'unknown')
         self.pkg_packager = self.options.get('pkg-packager', 'unknown')
         self.pkg_url = self.options.get('pkg-url', 'unknown')

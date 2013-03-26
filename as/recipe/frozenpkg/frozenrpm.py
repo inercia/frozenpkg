@@ -38,7 +38,7 @@ RPM_SPEC_TEMPLATE = """
 
 Name:                 @PKG_NAME@
 Version:              @PKG_VERSION@
-Release:              0
+Release:              @PKG_RELEASE@
 Summary:              @PKG_NAME@
 URL:                  @PKG_URL@
 License:              @PKG_LICENSE@
@@ -93,6 +93,7 @@ class FrozenRPM(Frozen):
         rpmspec = rpmspec.replace("@PKG_NAME@", self.pkg_name)
         rpmspec = rpmspec.replace("@PKG_VENDOR@", self.pkg_vendor)
         rpmspec = rpmspec.replace("@PKG_VERSION@", self.pkg_version)
+        rpmspec = rpmspec.replace("@PKG_RELEASE@", self.pkg_release)
         rpmspec = rpmspec.replace("@PKG_PACKAGER@", self.pkg_packager)
         rpmspec = rpmspec.replace("@PKG_URL@", self.pkg_url)
         rpmspec = rpmspec.replace("@PKG_LICENSE@", self.pkg_license)
