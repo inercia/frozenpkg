@@ -163,8 +163,8 @@ class Frozen(object):
                 if job.returncode != 0:
                     from zc.buildout import UserError
                     msg = 'could NOT run easy_install: %s: %s' % (' '.join(command), stdout)
-                    logger.critical()
-                    raise UserError(stdout)
+                    logger.critical(msg)
+                    raise UserError(msg)
 
 
     def _copy_outputs(self):
