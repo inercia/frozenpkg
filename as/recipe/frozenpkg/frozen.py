@@ -155,9 +155,17 @@ class Frozen(object):
             stdout, _ = job.communicate()
 
             if job.returncode != 0:
-                logger.debug('...... retrying with easy_install')
-                command = [easy_install] + args + ["%s==%s" % (dist.key, dist.version)]
-                job = subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+                logger.debug('...... retrying with pip')
+                pip = os.path.join(bin_dir, 'pip')
+                pip_args = ['install', '--egg']
+                ## try to use a downloads cache (if it exists)
+                try:
+                    download_cache = self.buildout['buildout']['download-cache']
+                    pip_args += ['--download-cache', download_cache]
+                except KeyError:
+                    pass
+                command = [pip] + pip_args + args + ["%s==%s" % (dist.key, dist.version)]
+                job = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 stdout, _ = job.communicate()
 
                 if job.returncode != 0:

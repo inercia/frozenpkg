@@ -14,6 +14,6 @@ clean:
 	rm -rf bin build parts temp
 	rm -rf *.tar.gz *.rpm *.egg-info
 
-distclean:
+distclean: clean
 	rm -rf eggs develop-eggs
 	
