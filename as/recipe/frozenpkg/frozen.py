@@ -214,7 +214,7 @@ class Frozen(object):
             try:
                 src, dest = [b.strip() for b in copy_line.split("->")]
             except Exception, e:
-                print "ERROR: malformed copy specification", e
+                logger.critical("ERROR: malformed copy specification: %s [skipping]" % str(e))
                 return
 
             if not os.path.isabs(src):
@@ -236,7 +236,7 @@ class Frozen(object):
                         shutil.copy(src_el, full_path_dest)
 
                 except Exception, e:
-                    logger.critical('ERROR: when copying "%s" to "%s"' % (src_el, full_path_dest))
+                    logger.critical('ERROR: when copying "%s" to "%s": %s' % (src_el, full_path_dest, str(e)))
 
 
     def _create_extra_dirs (self):

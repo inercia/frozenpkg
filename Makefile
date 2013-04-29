@@ -16,6 +16,9 @@ upload: build
 
 publish: upload
 
+test:
+	make -C testing
+
 clean:
 	rm -rf dist build *.egg-info
 	
