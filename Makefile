@@ -21,6 +21,7 @@ test:
 
 clean:
 	rm -rf dist build *.egg-info
+	make -C testing clean
 	
 distclean: clean
 	rm -rf bin develop-eggs eggs parts temp

@@ -330,6 +330,16 @@ class Frozen(object):
         else:
             output = filename
 
+
+        for name in glob.glob(os.path.join(self.buildroot, '*')):
+            shutil.rmtree(name, ignore_errors=True)
+
+        logger.debug('... overwriting everything on %s' % self.buildroot)
+        mode = 'r' if not compress else 'r:gz'
+        tar = tarfile.open(output, mode)
+        tar.extractall(path=self.buildroot)
+        tar.close()
+
         logger.debug('... output: %s.' % output)
         return output
 
