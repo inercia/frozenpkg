@@ -1,5 +1,4 @@
-
-
+import StringIO
 import os
 import sys
 import shutil
@@ -58,9 +57,11 @@ The @PKG_NAME@ package.
 
 %files
 
-%defattr(-, nobody, nobody, 0755)
+%defattr(-, @ATTR_DEFAULT_USER@, @ATTR_DEFAULT_GROUP@, @ATTR_DEFAULT_MODE@)
 
 @PKG_PREFIX@
+
+@ATTR_CONFS@
 
 # empty lines
 """
@@ -78,15 +79,7 @@ RPM_BUILD_DIRS = [
 
 class FrozenRPM(Frozen):
 
-    def install (self):
-        """
-        Create a RPM
-        """
-
-        super(FrozenRPM, self).install()
-
-        self._create_rpm_dirs()
-
+    def _save_spec_file(self):
         # replace the variables in the "spec" template
         rpmspec = RPM_SPEC_TEMPLATE
         rpmspec = rpmspec.replace("@TOP_DIR@", self.rpmbuild_dir)
@@ -119,6 +112,20 @@ class FrozenRPM(Frozen):
 
         rpmspec = rpmspec.replace("@SCRIPTS@", scripts)
 
+        rpmspec = rpmspec.replace("@ATTR_DEFAULT_USER@",  self.options.get('attr-def-user', 'root'))
+        rpmspec = rpmspec.replace("@ATTR_DEFAULT_GROUP@", self.options.get('attr-def-group', 'root'))
+        rpmspec = rpmspec.replace("@ATTR_DEFAULT_MODE@",  self.options.get('attr-def-mode', '0755'))
+
+
+        conf_lines = self.options.get('attr-conf', None)
+        conf_lines_str = ''
+        if conf_lines:
+            for line in StringIO.StringIO(conf_lines).readlines():
+                if not os.path.isabs(line):
+                    line = os.path.abspath(self.pkg_prefix + '/' + line)
+                conf_lines_str += "\n%config " + line
+        rpmspec = rpmspec.replace("@ATTR_CONFS@", conf_lines_str)
+
         ## save the spec file
         spec_filename = os.path.abspath(os.path.join(self.buildroot, self.pkg_name) + ".spec")
         logger.debug('Using spec file %s' % (spec_filename))
@@ -133,6 +140,15 @@ class FrozenRPM(Frozen):
         if spec_file:
             spec_file.close()
 
+    def install (self):
+        """
+        Create a RPM
+        """
+
+        super(FrozenRPM, self).install()
+
+        self._create_rpm_dirs()
+        self._save_spec_file()
         self._copy_eggs()
         self._copy_outputs()
         self._create_extra_dirs()

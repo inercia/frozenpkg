@@ -3,7 +3,7 @@
 Introduction
 ============
 
-This recipe enables you to freeze your buildout in a RPM, tgz's, etc.
+This recipe enables you to freeze your whole buildout in a RPM, tgz's, etc.
 You can specify the package details, the installation prefix, and the eggs and
 scripts that must be copied to the package.
 
@@ -66,6 +66,17 @@ Options
         extra-cleanups
             Any additional files that must be removed in the package.
 
+        attr-def-user
+            Default user for files ownership (defaults to "root").
+
+        attr-def-group
+            Default group for files ownership (defaults to "root").
+
+        attr-def-mode
+            Default mode for files ownership (defaults to 0755).
+
+        attr-conf
+            Matching files will be marked as configuration files.
 
 
 
@@ -107,5 +118,6 @@ Example
 
         debug          = yes
 
+        attr-conf      = conf/*.conf
 
 
